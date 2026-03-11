@@ -1,7 +1,7 @@
 [general]
 name=PSInSAR Suite
 description=Integrated suite for loading, processing and analysis of PS-InSAR displacement data
-version=1.5
+version=1.6
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
 author=Giovanni Montini

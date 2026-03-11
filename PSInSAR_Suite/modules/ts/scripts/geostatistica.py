@@ -364,7 +364,7 @@ def fit_variogram(h, g):
     for name, f in {"exp": exp_var, "sph": sph_var}.items():
         try:
             p, _ = curve_fit(f, h, g, p0=p0,
-                             bounds=([0, 0, 0.1], [np.inf, np.inf, np.max(h) * 2]))
+                             bounds=([0, 0, 0.1], [np.inf, np.inf, np.max(h)]))
             e = np.mean((g - f(h, *p)) ** 2)
             if e < err:
                 best = (name, p)
