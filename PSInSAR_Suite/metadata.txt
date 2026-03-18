@@ -1,7 +1,7 @@
 [general]
 name=PSInSAR Suite
 description=Integrated suite for loading, processing and analysis of PS-InSAR displacement data
-version=1.7
+version=2.0
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
 author=Giovanni Montini
@@ -21,6 +21,6 @@ pip_dependencies=pandas,numpy,matplotlib,scipy,statsmodels,pyproj,pykrige,mplcur
 icon=icons/icon_suite.png
 category=Analysis
 hasProcessingProvider=no
-experimental=yes
+experimental=no
 deprecated=no
 server=no
