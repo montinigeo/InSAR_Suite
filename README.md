@@ -1,4 +1,4 @@
-# PSInSAR Suite
+# InSAR Suite
 
 **Plugin QGIS per l'analisi dei dati PS-InSAR / QGIS plugin for PS-InSAR data analysis**
 
@@ -8,14 +8,14 @@
 
 ### Descrizione
 
-PSInSAR Suite è un plugin QGIS che raccoglie in un'unica toolbar dedicata quattro strumenti per l'analisi dei dati PS-InSAR (Persistent Scatterer Interferometric SAR). Il plugin nasce per semplificare il flusso di lavoro nell'analisi di dataset nazionali (es. EGMS Italia) e locali, coprendo tutte le fasi dall'acquisizione dati alla visualizzazione avanzata delle serie storiche.
+InSAR Suite è un plugin QGIS che raccoglie in un'unica toolbar dedicata quattro strumenti per l'analisi dei dati PS-InSAR (Persistent Scatterer Interferometric SAR). Il plugin nasce per semplificare il flusso di lavoro nell'analisi di dataset nazionali (es. EGMS Italia) e locali, coprendo tutte le fasi dall'acquisizione dati alla visualizzazione avanzata delle serie storiche.
 
 ### Moduli
 
 | Modulo | Descrizione |
 |--------|-------------|
-| **PSInSAR Load** | Caricamento layer PS da GeoPackage, Shapefile o GDB tramite un quadro di unione poligonale, con attivazione automatica al clic su mappa. Supporta anche il ricaricamento di un quadro già presente nel progetto. |
-| **PSInSAR EWUD** | Decomposizione East-West / Up-Down delle velocità LOS da coppie ascending/descending. Preset satellitari inclusi (Sentinel-1 EGMS, ERS/Envisat, COSMO-SkyMed, TerraSAR-X, ALOS). Output con campi Na e Nd (numero PS per cella). |
+| **InSAR Load** | Caricamento layer PS da GeoPackage, Shapefile o GDB tramite un quadro di unione poligonale, con attivazione automatica al clic su mappa. Supporta anche il ricaricamento di un quadro già presente nel progetto. |
+| **InSAR EWUD** | Decomposizione East-West / Up-Down delle velocità LOS da coppie ascending/descending. Preset satellitari inclusi (Sentinel-1 EGMS, ERS/Envisat, COSMO-SkyMed, TerraSAR-X, ALOS). Output con campi Na e Nd (numero PS per cella). |
 | **PSInSAR VIS** | Calcolo della percentuale di movimento rilevabile (pc_mov) in funzione della geometria SAR e della morfologia del terreno (Aspect/Slope da DEM). Elaborazione tramite QgsTask (GUI non bloccante). |
 | **PSInSAR TS** | Analisi serie storiche: verifica normalità, serie media automatica (con layer temporaneo in QGIS), scomposizione STL, analisi non lineare piecewise (pwlf), geostatistica e kriging. |
 
