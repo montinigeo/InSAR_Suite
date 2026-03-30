@@ -9,6 +9,8 @@ import matplotlib.dates as mdates
 import re
 
 from qgis.core import (
+
+
     QgsTask, QgsMessageLog, Qgis, QgsApplication,
     QgsVectorLayer, QgsField, QgsFeature,
     QgsProject
@@ -23,6 +25,22 @@ import mplcursors
 _active_tasks = []
 
 # ======= Dialog soglia di correlazione =======
+
+def _qv(v):
+    """Converte QVariant/NULL a float; restituisce None se NULL."""
+    if v is None:
+        return None
+    try:
+        from qgis.PyQt.QtCore import QVariant as _QVT
+        if isinstance(v, _QVT):
+            return None if v.isNull() else float(v.value())
+    except Exception:
+        pass
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
 class SogliaDialog(QDialog):
     def __init__(self, parent=None, default_value=0.85):
         super().__init__(parent)
@@ -89,7 +107,7 @@ def main():
     records = []
     for feat in selected_features:
         code = feat["CODE"] if "CODE" in feat.fields().names() else feat.id()
-        values = [feat[c] for c in campi_date]
+        values = [_qv(feat[c]) for c in campi_date]
         records.append([code] + values)
     df = pd.DataFrame(records, columns=["CODE"] + campi_date)
 

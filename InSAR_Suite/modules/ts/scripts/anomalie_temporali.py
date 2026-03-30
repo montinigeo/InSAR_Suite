@@ -1,4 +1,6 @@
 """
+
+
 InSAR TS – Analisi 6: Rilevamento anomalie temporali
 =====================================================
 Identifica le date di acquisizione anomale nella serie media dei PS
@@ -34,6 +36,22 @@ MIN_PS = 3
 
 
 # ── Dialogo parametri ─────────────────────────────────────────────────────────
+
+def _qv(v):
+    """Converte QVariant/NULL a float; restituisce None se NULL."""
+    if v is None:
+        return None
+    try:
+        from qgis.PyQt.QtCore import QVariant as _QVT
+        if isinstance(v, _QVT):
+            return None if v.isNull() else float(v.value())
+    except Exception:
+        pass
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
 class AnomalieDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -138,7 +156,7 @@ class AnomalieTemporali:
         self.run(feats, campi_d, soglia_corr, soglia_sigma, soglia_delta)
 
     def run(self, feats, campi_d, soglia_corr, soglia_sigma, soglia_delta):
-        records = [[f.id()] + [f[c] for c in campi_d] for f in feats]
+        records = [[f.id()] + [_qv(f[c]) for c in campi_d] for f in feats]
         df = pd.DataFrame(records, columns=['ID'] + campi_d)
         vals = df[campi_d].apply(pd.to_numeric, errors='coerce')
         n = len(df)

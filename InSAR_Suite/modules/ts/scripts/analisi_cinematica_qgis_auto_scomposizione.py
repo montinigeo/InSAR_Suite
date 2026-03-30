@@ -7,9 +7,27 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 import re
 
 # Registro globale per prevenire garbage collection dei task attivi
+
+
 _active_tasks = []
 
 # ================= FUNZIONE DI CORRELAZIONE =================
+
+def _qv(v):
+    """Converte QVariant/NULL a float; restituisce None se NULL."""
+    if v is None:
+        return None
+    try:
+        from qgis.PyQt.QtCore import QVariant as _QVT
+        if isinstance(v, _QVT):
+            return None if v.isNull() else float(v.value())
+    except Exception:
+        pass
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
 def corr_valid(x, y):
     mask = ~np.isnan(x) & ~np.isnan(y)
     if np.sum(mask) < 5:
@@ -60,7 +78,7 @@ def main():
     records = []
     for feat in selected_features:
         code = feat["CODE"] if "CODE" in feat.fields().names() else feat.id()
-        values = [feat[c] for c in campi_date]
+        values = [_qv(feat[c]) for c in campi_date]
         records.append([code] + values)
     df = pd.DataFrame(records, columns=["CODE"] + campi_date)
 
