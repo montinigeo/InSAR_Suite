@@ -270,10 +270,10 @@ def _calc_pc_mov(aspect_vals, slope_vals, azimut, off_nadir):
     # La slope α è l'angolo con l'ORIZZONTALE, quindi:
     #   componente orizzontale del versore = cos(α)
     #   componente verticale (verso il basso) = -sin(α)
-    # LOS·U = cos(α)·sin(θ)·sin(β−φ) − sin(α)·cos(θ)
+    # LOS·U = cos(α)·sin(θ)·sin(β−φ) + sin(α)·cos(θ)
     pc = np.abs(
         np.cos(alpha) * np.sin(theta) * np.sin(beta - phi)
-        - np.sin(alpha) * np.cos(theta)
+        + np.sin(alpha) * np.cos(theta)
     ) * 100.0
 
     # Caso piano (slope <= 3°): terreno quasi piatto, aspect non definito con precisione.
