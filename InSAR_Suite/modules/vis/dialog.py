@@ -194,9 +194,7 @@ def _compute_aspect_slope(dem_arr, gt, nodata):
     slope = np.degrees(np.arctan(np.sqrt(dz_dx**2 + dz_dy**2)))
 
     # Aspect in gradi (0=Nord, senso orario) — formula GDAL standard
-    # GDAL: aspect = 360 - arctan2(dz/dy, -dz/dx) * 180/pi - 90
-    # Equivalente a: aspect = 90 - arctan2(dz/dy, dz/dx) * 180/pi
-    #                         poi portare in [0, 360)
+    # La formula corretta è: aspect = 90 - arctan2(dz_dy, dz_dx)
     aspect = 90.0 - np.degrees(np.arctan2(dz_dy, dz_dx))
     aspect = np.where(aspect < 0.0, aspect + 360.0, aspect)
 
@@ -270,10 +268,10 @@ def _calc_pc_mov(aspect_vals, slope_vals, azimut, off_nadir):
     # La slope α è l'angolo con l'ORIZZONTALE, quindi:
     #   componente orizzontale del versore = cos(α)
     #   componente verticale (verso il basso) = -sin(α)
-    # LOS·U = cos(α)·sin(θ)·sin(β−φ) + sin(α)·cos(θ)
+    # LOS·U = cos(α)·sin(θ)·sin(β−φ) − sin(α)·cos(θ)
     pc = np.abs(
         np.cos(alpha) * np.sin(theta) * np.sin(beta - phi)
-        + np.sin(alpha) * np.cos(theta)
+        - np.sin(alpha) * np.cos(theta)
     ) * 100.0
 
     # Caso piano (slope <= 3°): terreno quasi piatto, aspect non definito con precisione.
@@ -835,6 +833,23 @@ class InSARVISDialog(QDialog):
         if not extent.isFinite() or extent.isEmpty():
             QMessageBox.warning(self, "Attenzione",
                 "Definisci un'estensione di elaborazione valida.")
+            return
+
+        cell = self.spin_cell.value()
+        proj_crs = QgsProject.instance().crs()
+        work_crs = QgsCoordinateReferenceSystem("EPSG:32632") \
+                   if dem.crs().isGeographic() else dem.crs()
+        from qgis.core import QgsCoordinateTransform
+        extent_w = _extent_to_crs(extent, proj_crs, work_crs)
+        nx = (extent_w.xMaximum() - extent_w.xMinimum()) / cell
+        ny = (extent_w.yMaximum() - extent_w.yMinimum()) / cell
+        if nx < 5 or ny < 5:
+            QMessageBox.warning(self, "Attenzione",
+                f"L'estensione di elaborazione è troppo piccola rispetto alla cella di ricampionamento ({cell:.0f} m).\n\n"
+                f"Larghezza: {extent_w.xMaximum()-extent_w.xMinimum():.0f} m ({nx:.1f} celle)\n"
+                f"Altezza:   {extent_w.yMaximum()-extent_w.yMinimum():.0f} m ({ny:.1f} celle)\n\n"
+                f"Aumenta l'estensione oppure riduci la cella di ricampionamento.\n"
+                f"Si consiglia almeno 10×10 celle (es. {cell*10:.0f} m × {cell*10:.0f} m).")
             return
 
         on = self.spin_offnadir.value()
