@@ -1,7 +1,7 @@
 [general]
 name=InSAR Suite
 description=Integrated suite for loading, processing and analysis of PSI displacement data
-version=3.0.7
+version=3.0.8
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
 author=Giovanni Montini
