@@ -53,9 +53,10 @@ class DistribuzioneSpostamentiVelocita:
                 'Seleziona uno o più punti PS sulla mappa con gli strumenti di selezione di QGIS, '
                 'poi avvia nuovamente l\'analisi.')
             return
-        self.campi_date = [f.name() for f in self.layer.fields() if re.match(r"^D\d{8}$", f.name())]
+        self.campi_date = [f.name() for f in self.layer.fields() if re.match(r"^D\d{8}$", f.name()) or re.match(r"^\d{8}$", f.name())]
+        self.campi_date = ['D' + c if re.match(r"^\d{8}$", c) else c for c in self.campi_date]
         if not self.campi_date:
-            QMessageBox.warning(None, 'InSAR TS', 'Nessun campo data trovato nel layer.\nI campi delle date devono avere formato DYYYYMMDD (es. D20170101).')
+            QMessageBox.warning(None, 'InSAR TS', 'Nessun campo data trovato nel layer.\nI campi delle date devono avere formato DYYYYMMDD o YYYYMMDD (es. D20170101 o 20170101).')
             return
 
         # Chiedi soglia correlazione se più di 1 PS selezionato
@@ -91,7 +92,7 @@ class DistribuzioneSpostamentiVelocita:
                     c = corr_valid(serie_i, serie_j)
                     corr_matrix[i, j] = corr_matrix[j, i] = c
             corr_df = pd.DataFrame(corr_matrix, columns=df["CODE"], index=df["CODE"])
-            mask_valid = (corr_df >= self.soglia_corr)
+            mask_valid = (corr_df >= self.soglia_corr) if self.soglia_corr > 0 else (corr_df.notna())
             coerenti = mask_valid.sum(axis=1) >= (n / 2)
             ps_coerenti = df.loc[coerenti.values].reset_index(drop=True)
 

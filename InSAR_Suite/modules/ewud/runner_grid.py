@@ -78,7 +78,10 @@ class GridRunner(QThread):
             feedback = _Feedback(self.progress, self.log, total_steps=6)
             outputs  = {}
 
-            cell_m   = self.params['lato_cella']
+            cell_m     = self.params['lato_cella']
+            tipo_cella = self.params.get('tipo_cella', 'square')
+            # TYPE: 2=Rettangolo, 4=Esagono piatto (flat-top), 5=Esagono puntato (pointy-top)
+            grid_type  = 4 if tipo_cella == 'hex' else 2
             ps_asc   = self.params['ps_ascendenti']
             ps_desc  = self.params['ps_discendenti']
             ps_crs   = ps_asc.crs()
@@ -177,7 +180,7 @@ class GridRunner(QThread):
                 'EXTENT':   extent_use,
                 'HOVERLAY': 0, 'HSPACING': cell_use_h,
                 'VOVERLAY': 0, 'VSPACING': cell_use_v,
-                'TYPE':     2,
+                'TYPE':     grid_type,
                 'OUTPUT':   'TEMPORARY_OUTPUT',
             }, context=ctx, feedback=feedback, is_child_algorithm=False)
             outputs['grid'] = r['OUTPUT']
@@ -185,7 +188,8 @@ class GridRunner(QThread):
             # ── Step 4 – Rimuovi campi inutili + indice spaziale griglia ──────
             feedback.next_step('Pulizia campi e indice spaziale griglia…')
             r = processing.run('native:deletecolumn', {
-                'COLUMN': ['left', 'top', 'right', 'bottom', 'row_index', 'col_index'],
+                'COLUMN': (['left', 'top', 'right', 'bottom', 'row_index', 'col_index']
+                            if tipo_cella == 'square' else ['left', 'top', 'right', 'bottom']),
                 'INPUT':  outputs['grid'],
                 'OUTPUT': 'TEMPORARY_OUTPUT',
             }, context=ctx, feedback=feedback, is_child_algorithm=False)

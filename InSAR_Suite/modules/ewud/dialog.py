@@ -14,6 +14,7 @@ Ogni tab ha:
 
 import os, traceback
 from qgis.PyQt.QtWidgets import (
+    QRadioButton, QButtonGroup,
     QDialog, QDialogButtonBox, QTabWidget, QWidget, QVBoxLayout,
     QHBoxLayout, QFormLayout, QGroupBox, QLabel, QLineEdit,
     QComboBox, QDoubleSpinBox, QSpinBox, QCheckBox, QPushButton,
@@ -383,6 +384,19 @@ class EgmsDialog(QDialog):
         self.g_cell.setSuffix(' m')
         spin_form.addRow('Lato cella:', self.g_cell)
 
+        # Tipo cella
+        cell_type_layout = QHBoxLayout()
+        self.rb_square = QRadioButton('Quadrata')
+        self.rb_hex    = QRadioButton('Esagonale')
+        self.rb_square.setChecked(True)
+        bg_cell = QButtonGroup(self)
+        bg_cell.addButton(self.rb_square)
+        bg_cell.addButton(self.rb_hex)
+        cell_type_layout.addWidget(self.rb_square)
+        cell_type_layout.addWidget(self.rb_hex)
+        cell_type_layout.addStretch()
+        spin_form.addRow('Tipo cella:', cell_type_layout)
+
         extent_group_layout = QVBoxLayout()
         extent_group_layout.addLayout(ext_form)
         extent_group_layout.addLayout(spin_form)
@@ -442,13 +456,13 @@ class EgmsDialog(QDialog):
         # Selezionando un satellite si precompilano automaticamente tutti
         # gli angoli. L'utente può poi modificarli manualmente.
         PRESETS = {
-            'Sentinel-1 (EGMS)':       (-11.0,    42.0,    191.0,    38.0,    True),
-            'Sentinel-1 (generico)':   (-12.0,    33.0,    192.0,    33.0,    True),
-            'ERS / Envisat':           (-13.0,    23.0,    193.0,    23.0,    True),
-            'ALOS / ALOS-2':           (-10.0,    34.0,    190.0,    34.0,    True),
-            'RADARSAT-2':           (-10.0,    35.0,    190.0,    35.0,    True),
-            'COSMO-SkyMed':            (-15.0,    30.0,    195.0,    30.0,    True),
-            'TerraSAR-X / TanDEM-X':   (-10.0,    35.0,    190.0,    35.0,    True),
+            'Sentinel-1 (EGMS - Italia centro-settentrionale)': (349.0,    42.0,    191.0,    38.0,    True),
+            'Sentinel-1 (generico)':   (348.0,    33.0,    192.0,    33.0,    True),
+            'ERS / Envisat':           (347.0,    23.0,    193.0,    23.0,    True),
+            'ALOS / ALOS-2':           (350.0,    34.0,    190.0,    34.0,    True),
+            'RADARSAT-2':           (350.0,    35.0,    190.0,    35.0,    True),
+            'COSMO-SkyMed':            (345.0,    30.0,    195.0,    30.0,    True),
+            'TerraSAR-X / TanDEM-X':   (350.0,    35.0,    190.0,    35.0,    True),
             'Personalizzato…':          None,
         }
         self._presets = PRESETS
@@ -478,7 +492,7 @@ class EgmsDialog(QDialog):
 
         self.e_az_asc = QDoubleSpinBox()
         self.e_az_asc.setRange(-360, 360); self.e_az_asc.setDecimals(4)
-        self.e_az_asc.setValue(-11.0); self.e_az_asc.setSuffix(' °')
+        self.e_az_asc.setValue(349.0); self.e_az_asc.setSuffix(' °')
         self.e_az_asc.setToolTip(
             'Heading del satellite: direzione di volo misurata da Nord in senso orario.\n'
             'Ascending tipico: circa −10° ÷ −15° (volo verso NNW).\n'
@@ -643,6 +657,7 @@ class EgmsDialog(QDialog):
         return {
             'estensione_griglia': self.g_extent.outputExtent(),
             'lato_cella':         self.g_cell.value(),
+            'tipo_cella':         'hex' if self.rb_hex.isChecked() else 'square',
             'ps_ascendenti':      self.g_ps_asc.currentLayer(),
             'ps_discendenti':     self.g_ps_desc.currentLayer(),
             'Egms_grid':          self.g_out.text() or 'TEMPORARY_OUTPUT',

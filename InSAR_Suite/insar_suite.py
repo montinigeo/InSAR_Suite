@@ -89,7 +89,7 @@ class InSARSuite:
 
         # ── Definizione azioni ────────────────────────────────────────────────
         # ┌───────────────────────────────────────────────────────────────────┐
-        # │  LOAD  │  EWUD  │  VIS  │  TS x6                                 │
+        # │  LOAD  │  EWUD  │  VIS  │  TS x6                │  POLYG          │
         # └───────────────────────────────────────────────────────────────────┘
 
         actions_def = [
@@ -162,10 +162,18 @@ class InSARSuite:
             },
             {
                 'icon':    'confronto.png',
-                'text':    'TS – Confronto zone',
+                'text':    'TS \u2013 Confronto zone',
                 'tooltip': 'Confronto serie storiche medie tra zone diverse',
                 'slot':    lambda: self._run_ts_script(5),
                 'section': 'TS',
+            },
+            # --- POLYG ---------------------------------------------------------
+            {
+                'icon':    'icon_polyg.png',
+                'text':    'InSAR Polygons',
+                'tooltip': 'Delimitazione aree di deformazione PS',
+                'slot':    self._run_polyg,
+                'section': 'POLYG',
             },
         ]
 
@@ -193,6 +201,18 @@ class InSARSuite:
             self._actions.append(action)
 
             prev_section = ad['section']
+
+        # Separatore finale dopo POLYG
+        sep_end = QWidget()
+        sep_end.setFixedWidth(8)
+        sep_end.setStyleSheet(
+            'QWidget {'
+            '  border-left: 2px solid #3498db;'
+            '  margin-top: 4px;'
+            '  margin-bottom: 4px;'
+            '}'
+        )
+        self.toolbar.addWidget(sep_end)
 
         QgsMessageLog.logMessage(
             '✅ Plugin InSAR Suite caricato correttamente.',
@@ -246,6 +266,11 @@ class InSARSuite:
         # show() non bloccante: l'utente può continuare a usare QGIS
         self._vis_dlg = InSARVISDialog(self.iface)
         self._vis_dlg.show()
+
+    def _run_polyg(self):
+        from .modules.polyg.dialog import InSARPolygonsDialog
+        self._polyg_dlg = InSARPolygonsDialog(self.iface)
+        self._polyg_dlg.show()
 
     # ──────────────────────────────────────────────────────────────────────────
     # Slot TS

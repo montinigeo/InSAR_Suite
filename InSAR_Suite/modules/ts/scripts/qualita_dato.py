@@ -128,10 +128,15 @@ class QualitaDato:
             return
 
         campi_d = [f.name() for f in layer.fields()
-                   if re.match(r'^D\d{8}$', f.name())]
+                   if re.match(r'^D\d{8}$', f.name()) or re.match(r'^\d{8}$', f.name())]
+        # Normalizza: se formato YYYYMMDD (senza D iniziale) aggiunge prefisso D
+        campi_d = ['D' + c if re.match(r'^\d{8}$', c) else c for c in campi_d]
+        # Rinomina temporaneamente le colonne nel layer features
+        _remap_campi = {f.name(): ('D' + f.name() if re.match(r'^\d{8}$', f.name()) else f.name())
+                        for f in layer.fields()}
         if not campi_d:
             QMessageBox.warning(None, 'InSAR TS',
-                'Nessun campo DYYYYMMDD trovato nel layer.')
+                'Nessun campo nel formato DYYYYMMDD o YYYYMMDD trovato nel layer.')
             return
 
         # Soglia correlazione
@@ -142,9 +147,9 @@ class QualitaDato:
                 return  # utente ha annullato
             soglia = dlg.getValue()
 
-        self.run(feats, campi_d, soglia)
+        self.run(feats, campi_d, soglia, layer)
 
-    def run(self, feats, campi_d, soglia):
+    def run(self, feats, campi_d, soglia, layer=None):
         # DataFrame valori
         records = [[f.id()] + [_qv(f[c]) for c in campi_d] for f in feats]
         df = pd.DataFrame(records, columns=['ID'] + campi_d)
@@ -165,7 +170,8 @@ class QualitaDato:
                 corr_m[:, ~valid_r] = np.nan
             else:
                 corr_m = np.full((n_tot, n_tot), np.nan)
-            coerente = (np.nansum(corr_m >= soglia, axis=1) >= n_tot / 2)
+            coerente = (np.ones(n_tot, dtype=bool) if soglia <= 0
+                        else (np.nansum(corr_m >= soglia, axis=1) >= n_tot / 2))
             df_coe = df.loc[coerente].reset_index(drop=True)
             vals_coe = vals.loc[coerente].reset_index(drop=True)
         else:
@@ -177,6 +183,7 @@ class QualitaDato:
             QMessageBox.warning(None, 'InSAR TS – Nessun PS coerente',
                 'Nessun PS coerente trovato. Prova ad abbassare la soglia di correlazione.')
             return
+
 
         # Calcola velocità per PS coerenti
         t = np.array([
@@ -201,9 +208,9 @@ class QualitaDato:
                 f'Velocità calcolabili solo per {len(vel_ok)} PS — insufficienti.')
             return
 
-        self.plot(vel_ok, n_tot, n_coe, soglia)
+        self.plot(vel_ok, n_tot, n_coe, soglia, df_coe)
 
-    def plot(self, vel, n_tot, n_coe, soglia):
+    def plot(self, vel, n_tot, n_coe, soglia, df_coe_ref=None):
         n = len(vel)
 
         # ── Statistiche robuste ───────────────────────────────────────────────
@@ -217,6 +224,8 @@ class QualitaDato:
         zrob = zscore_robusto(vel)
         outliers = np.abs(zrob) > 2.5
         n_out = int(np.sum(outliers))
+        skew_v = float(stats.skew(vel))
+        kurt_v = float(stats.kurtosis(vel))  # kurtosis in eccesso (Fisher, normale=0)
 
         # Shapiro-Wilk
         if n >= 8:
@@ -383,11 +392,12 @@ class QualitaDato:
             ["Mediana", "{:.3f} mm/a".format(med),
              "IQR", "{:.3f} mm/a".format(iqr),
              "MAD", "{:.3f} mm/a".format(mad)],
-            ["Dispersione rel.", disp_str,
-             "Outlier (z-rob>2.5)", out_str,
-             "", ""],
-            ["Shapiro-Wilk", sw_txt,
-             "Esito", sw_lbl, "", ""],
+            ["Skewness", "{:.3f}".format(skew_v),
+             "Kurtosis (eccesso)", "{:.3f}".format(kurt_v),
+             "Dispersione rel.", disp_str],
+            ["Outlier (z-rob>2.5)", out_str,
+             "Shapiro-Wilk", sw_txt,
+             "Esito", sw_lbl],
         ]
 
         y0 = 0.88
@@ -460,6 +470,45 @@ class QualitaDato:
             'border-radius:3px; padding:3px 8px;')
         bar_lay.addWidget(btn_png)
         bar_lay.addStretch()
+
+        # Pulsante Qt per caricare PS coerenti
+        from qgis.PyQt.QtWidgets import QPushButton as _QPBps
+        from qgis.PyQt.QtCore import QTimer as _QTps
+        btn_ps_coe = _QPBps("Carica PS coerenti in QGIS")
+        btn_ps_coe.setFixedHeight(28)
+        btn_ps_coe.setStyleSheet(
+            "QPushButton{background:#27ae60;color:white;border-radius:3px;padding:0 8px;}"
+            "QPushButton:hover{background:#2ecc71;}")
+        _df_ref = df_coe_ref
+        _nc_ref = n_coe
+        _nt_ref = n_tot
+        def _carica_ps_coe():
+            try:
+                from qgis.core import QgsVectorLayer, QgsProject, QgsFeature
+                _ps_lyr = iface.activeLayer()
+                if _ps_lyr is None or _df_ref is None:
+                    return
+                _hl = QgsVectorLayer("Point?crs=" + _ps_lyr.crs().authid(),
+                    "PS_coerenti (" + str(_nc_ref) + "/" + str(_nt_ref) + ")", "memory")
+                _dp = _hl.dataProvider()
+                _dp.addAttributes(_ps_lyr.fields().toList())
+                _hl.updateFields()
+                _ids = set(int(x) for x in _df_ref["ID"].tolist())
+                _feats = []
+                for _f in _ps_lyr.selectedFeatures():
+                    if _f.id() in _ids:
+                        _nf = QgsFeature(_hl.fields())
+                        _nf.setGeometry(_f.geometry())
+                        _nf.setAttributes(_f.attributes())
+                        _feats.append(_nf)
+                _dp.addFeatures(_feats)
+                _hl.updateExtents()
+                QgsProject.instance().addMapLayer(_hl)
+                iface.mapCanvas().refresh()
+            except Exception:
+                pass
+        btn_ps_coe.clicked.connect(_carica_ps_coe)
+        bar_lay.addWidget(btn_ps_coe)
 
         win_layout.addWidget(bar)
 

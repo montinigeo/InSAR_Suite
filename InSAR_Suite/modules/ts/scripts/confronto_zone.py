@@ -51,7 +51,8 @@ def calcola_serie_media(feats, campi_d, t, soglia):
             corr_m[:, ~valid_r] = np.nan
         else:
             corr_m = np.full((n, n), np.nan)
-        coerente = (np.nansum(corr_m >= soglia, axis=1) >= n / 2)
+        coerente = (np.ones(n, dtype=bool) if soglia <= 0
+                    else (np.nansum(corr_m >= soglia, axis=1) >= n / 2))
         vals_coe = vals.loc[coerente].reset_index(drop=True)
     else:
         vals_coe = vals.copy()
@@ -309,10 +310,11 @@ def avvia():
         return
 
     campi_d = [f.name() for f in layer.fields()
-               if re.match(r"^D\d{8}$", f.name())]
+               if re.match(r"^D\d{8}$", f.name()) or re.match(r"^\d{8}$", f.name())]
+    campi_d = ["D" + c if re.match(r"^\d{8}$", c) else c for c in campi_d]
     if not campi_d:
         QMessageBox.warning(None, "InSAR TS",
-            "Nessun campo DYYYYMMDD trovato nel layer.")
+            "Nessun campo nel formato DYYYYMMDD o YYYYMMDD trovato nel layer.")
         return
 
     _panel_confronto = ConfrontoZonePanel(

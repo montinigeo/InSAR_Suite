@@ -145,7 +145,12 @@ class AnomalieTemporali:
             return
 
         campi_d = [f.name() for f in layer.fields()
-                   if re.match(r'^D\d{8}$', f.name())]
+                   if re.match(r'^D\d{8}$', f.name()) or re.match(r'^\d{8}$', f.name())]
+        # Normalizza: se formato YYYYMMDD (senza D iniziale) aggiunge prefisso D
+        campi_d = ['D' + c if re.match(r'^\d{8}$', c) else c for c in campi_d]
+        # Rinomina temporaneamente le colonne nel layer features
+        _remap_campi = {f.name(): ('D' + f.name() if re.match(r'^\d{8}$', f.name()) else f.name())
+                        for f in layer.fields()}
         if not campi_d:
             QMessageBox.warning(None, 'InSAR TS – Campi data mancanti',
                 'Nessun campo DYYYYMMDD trovato nel layer.\n\n'
@@ -181,7 +186,8 @@ class AnomalieTemporali:
                 corr_m[:, ~valid_r] = np.nan
             else:
                 corr_m = np.full((n, n), np.nan)
-            coerente = (np.nansum(corr_m >= soglia_corr, axis=1) >= n / 2)
+            coerente = (np.ones(n, dtype=bool) if soglia_corr <= 0
+                        else (np.nansum(corr_m >= soglia_corr, axis=1) >= n / 2))
             vals_coe = vals.loc[coerente].reset_index(drop=True)
         else:
             vals_coe = vals.copy()
@@ -230,12 +236,12 @@ class AnomalieTemporali:
         self.plot(date, t, media, sigma_ps, trend, residui,
                   anomalie, anom_res, anom_delta,
                   a, r2, std_res, soglia_res, soglia_delta,
-                  n_tot, n_coe, n_anom, soglia_sigma)
+                  n_tot, n_coe, n_anom, soglia_sigma, soglia_corr)
 
     def plot(self, date, t, media, sigma_ps, trend, residui,
              anomalie, anom_res, anom_delta,
              a, r2, std_res, soglia_res, soglia_delta,
-             n_tot, n_coe, n_anom, soglia_sigma):
+             n_tot, n_coe, n_anom, soglia_sigma, soglia_corr=0.85):
 
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 8),
                                         facecolor='white',
@@ -243,6 +249,7 @@ class AnomalieTemporali:
         fig.suptitle(
             f'Rilevamento anomalie temporali\n'
             f'PS selezionati: {n_tot}  |  PS coerenti: {n_coe}  |  '
+            f'Soglia coerenza: {soglia_corr:.2f}  |  '
             f'Acquisizioni anomale: {n_anom}',
             fontsize=12, y=0.98
         )
@@ -343,6 +350,7 @@ class AnomalieTemporali:
                     active_ann[0].set_visible(False)
                     fig.canvas.draw_idle()
         fig.canvas.mpl_connect('motion_notify_event', on_move)
+
 
         plt.show()
 

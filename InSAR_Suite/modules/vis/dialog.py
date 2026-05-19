@@ -5,6 +5,7 @@ import numpy as np
 from osgeo import gdal, ogr, osr
 
 from qgis.PyQt.QtWidgets import (
+    QCheckBox,
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QComboBox, QDoubleSpinBox, QPushButton,
     QGroupBox, QRadioButton, QButtonGroup, QLineEdit,
@@ -29,43 +30,43 @@ gdal.UseExceptions()
 
 # ── Tabella satelliti ──────────────────────────────────────────────────────────
 SATELLITES = {
-    "Sentinel-1 (EGMS)": {
-        "ASC":  {"azimut": -11.0, "off_nadir": 42.0},
+    "Sentinel-1 (EGMS - Italia centro-settentrionale)": {
+        "ASC":  {"azimut": 349.0, "off_nadir": 42.0},
         "DESC": {"azimut": 191.0, "off_nadir": 38.0},
         "band": "C",
     },
     "Sentinel-1 (generico)": {
-        "ASC":  {"azimut": -12.0, "off_nadir": 33.0},
+        "ASC":  {"azimut": 348.0, "off_nadir": 33.0},
         "DESC": {"azimut": 192.0, "off_nadir": 33.0},
         "band": "C",
     },
     "ERS / Envisat": {
-        "ASC":  {"azimut": -13.0, "off_nadir": 23.0},
+        "ASC":  {"azimut": 347.0, "off_nadir": 23.0},
         "DESC": {"azimut": 193.0, "off_nadir": 23.0},
         "band": "C",
     },
     "ALOS / ALOS-2": {
-        "ASC":  {"azimut": -10.0, "off_nadir": 34.0},
+        "ASC":  {"azimut": 350.0, "off_nadir": 34.0},
         "DESC": {"azimut": 190.0, "off_nadir": 34.0},
         "band": "L",
     },
     "RADARSAT-2": {
-        "ASC":  {"azimut": -10.0, "off_nadir": 35.0},
+        "ASC":  {"azimut": 350.0, "off_nadir": 35.0},
         "DESC": {"azimut": 190.0, "off_nadir": 35.0},
         "band": "C",
     },
     "COSMO-SkyMed": {
-        "ASC":  {"azimut": -15.0, "off_nadir": 30.0},
+        "ASC":  {"azimut": 345.0, "off_nadir": 30.0},
         "DESC": {"azimut": 195.0, "off_nadir": 30.0},
         "band": "X",
     },
     "TerraSAR-X / TanDEM-X": {
-        "ASC":  {"azimut": -10.0, "off_nadir": 35.0},
+        "ASC":  {"azimut": 350.0, "off_nadir": 35.0},
         "DESC": {"azimut": 190.0, "off_nadir": 35.0},
         "band": "X",
     },
     "Personalizzato": {
-        "ASC":  {"azimut": -11.0, "off_nadir": 42.0},
+        "ASC":  {"azimut": 349.0, "off_nadir": 42.0},
         "DESC": {"azimut": 191.0, "off_nadir": 38.0},
         "band": "-",
     },
@@ -508,11 +509,25 @@ class InSARVISDialog(QDialog):
         main.addWidget(grp2)
 
         # Output
-        grp3 = QGroupBox("Layer di output (in memoria)")
+        grp3 = QGroupBox("Layer di output")
         g3   = QGridLayout(grp3)
         g3.addWidget(QLabel("Nome layer:"), 0, 0)
         self.le_pc = QLineEdit("calcolo_pc_rilevata")
         g3.addWidget(self.le_pc, 0, 1)
+        self.chk_save = QCheckBox("Salva su file (GeoPackage)")
+        self.chk_save.setChecked(False)
+        g3.addWidget(self.chk_save, 1, 0, 1, 2)
+        row_save = QHBoxLayout()
+        self.le_save_path = QLineEdit()
+        self.le_save_path.setPlaceholderText("Percorso file .gpkg ...")
+        self.le_save_path.setEnabled(False)
+        self.btn_save_path = QToolButton()
+        self.btn_save_path.setText("…")
+        self.btn_save_path.setFixedSize(QSize(28, 28))
+        self.btn_save_path.setEnabled(False)
+        row_save.addWidget(self.le_save_path)
+        row_save.addWidget(self.btn_save_path)
+        g3.addLayout(row_save, 2, 0, 1, 2)
         main.addWidget(grp3)
 
         # Progress
@@ -558,6 +573,8 @@ class InSARVISDialog(QDialog):
         self.btn_browse_dem.clicked.connect(self._browse_dem)
         self.btn_run.clicked.connect(self._run)
         self.btn_cancel.clicked.connect(self._cancel)
+        self.chk_save.toggled.connect(self._toggle_save)
+        self.btn_save_path.clicked.connect(self._browse_save)
 
     def _browse_ps(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -568,6 +585,18 @@ class InSARVISDialog(QDialog):
                 self._update_crs_note()
             except RuntimeError as e:
                 QMessageBox.warning(self, "Errore", str(e))
+
+    def _toggle_save(self, checked):
+        self.le_save_path.setEnabled(checked)
+        self.btn_save_path.setEnabled(checked)
+
+    def _browse_save(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Salva layer pc_mov", "", "GeoPackage (*.gpkg)")
+        if path:
+            if not path.endswith(".gpkg"):
+                path += ".gpkg"
+            self.le_save_path.setText(path)
 
     def _browse_dem(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -706,6 +735,12 @@ class InSARVISDialog(QDialog):
                 "Si consiglia almeno 10x10 celle.")
             return
 
+        save_path = self.le_save_path.text().strip()             if self.chk_save.isChecked() else None
+        if self.chk_save.isChecked() and not save_path:
+            QMessageBox.warning(self, "Attenzione",
+                "Specifica il percorso del file di salvataggio.")
+            return
+
         params = {
             "ps_path":       ps_uri,
             "ps_crs_wkt":    ps_crs.toWkt(),
@@ -720,6 +755,7 @@ class InSARVISDialog(QDialog):
             "azimut":        self.spin_azimut.value(),
             "off_nadir":     on,
             "output_name":   self.le_pc.text(),
+            "save_path":     save_path,
         }
 
         self.btn_run.setVisible(False)
@@ -728,6 +764,7 @@ class InSARVISDialog(QDialog):
         self.progress.setValue(0)
         self.lbl_step.setText("Avvio elaborazione...")
 
+        self._last_save_path = params.get('save_path')
         self.task = InSARTask(
             params,
             on_done      = self._on_finished,
@@ -754,7 +791,27 @@ class InSARVISDialog(QDialog):
         self._reset_ui()
         def _add_layer():
             _apply_qml(result)
-            QgsProject.instance().addMapLayer(result)
+            # Salva su GeoPackage se richiesto
+            save_path = self._last_save_path
+            if save_path:
+                from qgis.core import QgsVectorFileWriter, QgsCoordinateTransformContext
+                opts = QgsVectorFileWriter.SaveVectorOptions()
+                opts.driverName = "GPKG"
+                opts.fileEncoding = "UTF-8"
+                err, msg, _, _ = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    result, save_path,
+                    QgsCoordinateTransformContext(), opts)
+                if err == QgsVectorFileWriter.NoError:
+                    saved_layer = QgsVectorLayer(save_path, result.name(), "ogr")
+                    _apply_qml(saved_layer)
+                    QgsProject.instance().addMapLayer(saved_layer)
+                else:
+                    QgsProject.instance().addMapLayer(result)
+                    QMessageBox.warning(self, "Attenzione",
+                        "Salvataggio fallito:\n" + str(msg) +
+                        "\n\nLayer aggiunto come layer temporaneo.")
+            else:
+                QgsProject.instance().addMapLayer(result)
             QMessageBox.information(self, "Completato",
                 "Calcolo completato con successo!\n\n"
                 "Satellite  : " + self.cb_sat.currentData() + "\n"

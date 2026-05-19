@@ -1,17 +1,18 @@
 [general]
 name=InSAR Suite
 description=Integrated suite for loading, processing and analysis of PSI displacement data
-version=3.1
+version=3.2
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
 author=Giovanni Montini
 email=g.montini@appenninosettentrionale.it
-about=InSAR Suite is an integrated QGIS plugin that brings together four tools for PSI (Persistent Scatterer Interferometry) data analysis into a single dedicated toolbar.
+about=InSAR Suite is an integrated QGIS plugin that brings together five tools for PSI (Persistent Scatterer Interferometry) data analysis into a single dedicated toolbar.
 
  - InSAR Load: loads PSI point layers from GeoPackage, Shapefile or GDB files using a polygon index layer, or reactivates an index already present in the project.
- - InSAR EWUD: decomposes LOS velocities from ascending/descending Sentinel-1 (or other SAR) data into East-West and Up-Down components, with automatic resampling grid creation. Outputs include Na and Nd fields (number of PS points used per cell).
- - InSAR VIS: calculates the detectable movement percentage (pc_mov) based on SAR acquisition geometry and terrain morphology derived from a DEM.
- - InSAR TS: time series analysis tools including data quality and homogeneity check, automatic kinematic analysis with mean series layer output, seasonal decomposition (STL), piecewise non-linear analysis, temporal anomaly detection, and multi-zone comparison.
+ - InSAR EWUD: decomposes LOS velocities from ascending/descending SAR data into East-West and Up-Down components, with automatic resampling grid creation (square or hexagonal cells). Outputs include Na and Nd fields (number of PS points used per cell).
+ - InSAR VIS: calculates the detectable movement percentage (pc_mov) based on SAR acquisition geometry and terrain morphology derived from a DEM. Output can be saved as a permanent GeoPackage.
+ - InSAR TS: time series analysis tools including data quality and homogeneity check (with skewness and kurtosis), automatic kinematic analysis, seasonal decomposition (STL), piecewise non-linear analysis, temporal anomaly detection, and multi-zone comparison. Supports DYYYYMMDD and YYYYMMDD date field formats.
+ - InSAR Polygons: automatic delineation of deformation areas from PS data using buffer and geometric dissolve by velocity class, with hierarchical clipping and optional morphological smoothing.
 
 homepage=https://github.com/montinigeo/InSAR_Suite
 tracker=https://github.com/montinigeo/InSAR_Suite/issues

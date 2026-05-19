@@ -74,11 +74,13 @@ def main():
         if not ok:
             return  # utente ha annullato
 
-    campi_date = [f.name() for f in layer.fields() if re.match(r"^D\d{8}$", f.name())]
+    campi_date = [f.name() for f in layer.fields()
+                  if re.match(r"^D\d{8}$", f.name()) or re.match(r"^\d{8}$", f.name())]
+    campi_date = ["D" + c if re.match(r"^\d{8}$", c) else c for c in campi_date]
     if not campi_date:
         QMessageBox.warning(None, 'InSAR TS',
             'Nessun campo data trovato nel layer.\n'
-            'I campi delle date devono avere formato DYYYYMMDD (es. D20170101).')
+            'I campi delle date devono avere formato DYYYYMMDD o YYYYMMDD.')
         return
     date = [pd.to_datetime(c[1:], format="%Y%m%d") for c in campi_date]
 
@@ -91,7 +93,7 @@ def main():
 
     task = AnalisiCinematicaTask(
         "InSAR TS - Scomposizione serie storiche",
-        df, date, soglia_corr, campi_date
+        df, date, soglia_corr, campi_date, layer
     )
     _active_tasks.append(task)  # previene garbage collection
     QgsApplication.taskManager().addTask(task)
@@ -100,8 +102,9 @@ def main():
 # ================= QGIS TASK =================
 # ================= QGIS TASK =================
 class AnalisiCinematicaTask(QgsTask):
-    def __init__(self, description, df, date, soglia_corr, campi_date):
+    def __init__(self, description, df, date, soglia_corr, campi_date, layer=None):
         super().__init__(description, QgsTask.CanCancel if hasattr(QgsTask, "CanCancel") else QgsTask.Flag.CanCancel)
+        self.layer = layer
         self.df = df.copy()
         self.date = date
         self.soglia_corr = soglia_corr
@@ -133,7 +136,7 @@ class AnalisiCinematicaTask(QgsTask):
                 else:
                     corr_matrix = np.full((n, n), np.nan)
                 corr_df = pd.DataFrame(corr_matrix, columns=self.df["CODE"], index=self.df["CODE"])
-                mask_valid = (corr_df >= self.soglia_corr)
+                mask_valid = (corr_df >= self.soglia_corr) if self.soglia_corr > 0 else (corr_df.notna())
                 coerenti = mask_valid.sum(axis=1) >= (n / 2)
                 ps_coerenti = self.df.loc[coerenti.values].reset_index(drop=True)
 
@@ -235,6 +238,46 @@ class AnalisiCinematicaTask(QgsTask):
 
             # Layout ottimizzato per aumentare altezza grafici, con margine inferiore piccolo e spaziatura verticale aumentata
             plt.tight_layout(rect=[0, 0.05, 1, 0.93], h_pad=3.0)
+            # Pulsante carica PS coerenti in QGIS
+            from matplotlib.widgets import Button as _MplBtn
+            from qgis.PyQt.QtCore import QTimer as _QTimer
+            _ax_ps = fig.add_axes([0.01, 0.01, 0.22, 0.04])
+            _btn_ps = _MplBtn(_ax_ps, "Carica PS coerenti in QGIS",
+                              color="#27ae60", hovercolor="#2ecc71")
+            _btn_ps.label.set_color("white")
+            _btn_ps.label.set_fontsize(8)
+            _ps_snap = ps_coerenti.copy()
+            _layer_snap = self.layer
+            _nc_snap = len(ps_coerenti)
+            _nt_snap = n
+            def _on_carica_ps(event, _ps=_ps_snap, _lyr=_layer_snap, _nc=_nc_snap, _nt=_nt_snap):
+                def _load():
+                    try:
+                        from qgis.core import QgsVectorLayer, QgsProject, QgsFeature
+                        _ps_lyr = _lyr if _lyr is not None else iface.activeLayer()
+                        if _ps_lyr is None: return
+                        _hl = QgsVectorLayer("Point?crs=" + _ps_lyr.crs().authid(),
+                            "PS_coerenti (" + str(_nc) + "/" + str(_nt) + ")", "memory")
+                        _dp = _hl.dataProvider()
+                        _dp.addAttributes(_ps_lyr.fields().toList())
+                        _hl.updateFields()
+                        _codes = set(_ps["CODE"].tolist()) if "CODE" in _ps.columns else set()
+                        _ids = set(_ps["ID"].tolist()) if "ID" in _ps.columns else set()
+                        _feats = []
+                        for _f in _ps_lyr.selectedFeatures():
+                            _c = _f["CODE"] if "CODE" in _f.fields().names() else None
+                            if (_c is not None and _c in _codes) or _f.id() in _ids:
+                                _nf = QgsFeature(_hl.fields())
+                                _nf.setGeometry(_f.geometry())
+                                _nf.setAttributes(_f.attributes())
+                                _feats.append(_nf)
+                        _dp.addFeatures(_feats); _hl.updateExtents()
+                        QgsProject.instance().addMapLayer(_hl)
+                        iface.mapCanvas().refresh()
+                    except Exception: pass
+                _QTimer.singleShot(0, _load)
+            _btn_ps.on_clicked(_on_carica_ps)
+            self._btn_ps = _btn_ps
             plt.show()
 
             # Ridimensiona all'80% dello schermo disponibile
