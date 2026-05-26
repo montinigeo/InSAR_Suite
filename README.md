@@ -16,6 +16,8 @@ La versione 3.1 introduce il fix del crash matplotlib alla chiusura di QGIS, agg
 
 La versione 3.2 aggiunge skewness e kurtosis all'analisi qualità TS, supporta il formato data YYYYMMDD (oltre a DYYYYMMDD), introduce il pulsante "Carica PS coerenti in QGIS" nei grafici TS, aggiunge celle esagonali nel modulo EWUD, consente il salvataggio permanente dell'output VIS, aggiorna i preset satellitari con azimut ASC in convenzione positiva ([0°, 360°]) e introduce il nuovo modulo **InSAR Polygons** per la delimitazione automatica delle aree di deformazione.
 
+La versione 3.2.1 corregge un bug nel modulo EWUD che su alcuni sistemi causava lo scambio dei campi Va/Na/Vd/Nd, e aggiunge la compatibilità con schermi di dimensioni ridotte nel modulo InSAR Polygons.
+
 ### Moduli
 
 | Modulo | Descrizione |
@@ -67,7 +69,7 @@ La versione 3.2 aggiunge skewness e kurtosis all'analisi qualità TS, supporta i
 Le nuove versioni vengono pubblicate direttamente nel repository e sono immediatamente disponibili senza attese di revisione.
 
 **Da ZIP:**
-1. Scarica `InSAR_Suite_v3.2_QGIS.zip` dalla pagina [Releases](../../releases)
+1. Scarica `InSAR_Suite_v3.2.1_QGIS.zip` dalla pagina [Releases](../../releases)
 2. In QGIS: *Plugin → Gestisci e installa plugin → Installa da ZIP*
 3. Abilita il plugin dall'elenco degli installati
 
@@ -108,6 +110,8 @@ Version 3.0 completely redesigns the TS module: the normality check is replaced 
 Version 3.1 introduces a fix for the matplotlib crash on QGIS exit, adds layer validity checks in TS modules, a CRS check in the VIS module, and updates satellite presets.
 
 Version 3.2 adds skewness and kurtosis to the TS quality analysis, supports the YYYYMMDD date format (in addition to DYYYYMMDD), introduces a "Load coherent PS to QGIS" button in TS charts, adds hexagonal cell support in EWUD, allows permanent saving of VIS output, updates satellite presets to positive ASC azimuth convention ([0°, 360°]), and introduces the new **InSAR Polygons** module for automatic delineation of deformation areas.
+
+Version 3.2.1 fixes a bug in the EWUD module that on some systems caused the Va/Na/Vd/Nd fields to be swapped, and adds scrollable window support for small screens in the InSAR Polygons module.
 
 ### Modules
 
@@ -160,7 +164,7 @@ Version 3.2 adds skewness and kurtosis to the TS quality analysis, supports the 
 New versions are published directly to the repository and are immediately available without review delays.
 
 **From ZIP:**
-1. Download `InSAR_Suite_v3.2_QGIS.zip` from the [Releases](../../releases) page
+1. Download `InSAR_Suite_v3.2.1_QGIS.zip` from the [Releases](../../releases) page
 2. In QGIS: *Plugins → Manage and Install Plugins → Install from ZIP*
 3. Enable the plugin from the installed list
 

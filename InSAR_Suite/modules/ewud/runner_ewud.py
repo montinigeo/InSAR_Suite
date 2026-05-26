@@ -12,6 +12,10 @@ from qgis.core import (
     QgsVectorLayer
 )
 import processing
+def _f(v):
+    """Formatta un float con il punto decimale, indipendentemente dalla locale."""
+    return repr(float(v))
+
 
 PI = math.pi
 
@@ -58,10 +62,16 @@ class EwudRunner(QThread):
             theta_desc = p['offnadir_desc']
             alpha_asc  = p['azimut_asc']
             alpha_desc = p['azimut_desc']
-            sgn        = -1.0 if p.get('right_looking', True) else 1.0
-
             # ── Coefficienti geometrici ───────────────────────────────────────
+            # Convenzione EGMS: positivo = avvicinamento al satellite
+            # ASC vola verso NNO (es. 349°), guarda a destra verso ENE:
+            #   Va>0 (avvicinamento da ENE) → il bersaglio si muove verso OSO (Ovest)
+            # DESC vola verso SSO (es. 191°), guarda a destra verso ONO:
+            #   Vd<0 (allontanamento verso ONO) → il bersaglio si muove verso OSO (Ovest)
+            # sgn=-1 produce Ca_e<0 e Cd_e>0, che con la formula EWUD
+            # restituisce E<0 per movimento verso Ovest: corretto.
             feedback.next_step('Pre-calcolo coefficienti geometrici…')
+            sgn  = -1.0  # right-looking: positivo=avvicinamento → inversione componente Est
             Ca_e = sgn * math.sin(theta_asc  * PI/180) * math.cos(alpha_asc  * PI/180)
             Ca_u =       math.cos(theta_asc  * PI/180)
             Cd_e = sgn * math.sin(theta_desc * PI/180) * math.cos(alpha_desc * PI/180)
@@ -70,9 +80,9 @@ class EwudRunner(QThread):
             B        = Ca_e**2/Ca_u + Ca_u
             D        = Cd_e/Cd_u - Ca_e/Ca_u
             Ce_ratio = Ca_e / Ca_u
-            feedback.pushInfo(f'Ca_e={Ca_e:.8f}  Ca_u={Ca_u:.8f}')
-            feedback.pushInfo(f'Cd_e={Cd_e:.8f}  Cd_u={Cd_u:.8f}')
-            feedback.pushInfo(f'A={A:.8f}  B={B:.8f}  D={D:.8f}')
+            feedback.pushInfo(f'Ca_e={_f(Ca_e)}  Ca_u={_f(Ca_u)}')
+            feedback.pushInfo(f'Cd_e={_f(Cd_e)}  Cd_u={_f(Cd_u)}')
+            feedback.pushInfo(f'A={_f(A)}  B={_f(B)}  D={_f(D)}')
 
             # ── Allineamento CRS PS → griglia (con ritaglio preventivo) ──────
             from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsCoordinateTransform
@@ -124,66 +134,122 @@ class EwudRunner(QThread):
             #   e calcola la media in un'unica passata.
             # ══════════════════════════════════════════════════════════════════
 
-            feedback.next_step('Media Va e conteggio Na per cella (join spaziale ascending)…')
-            stat_asc = self._run('qgis:joinbylocationsummary', {
-                'INPUT':          griglia,
-                'JOIN':           ps_asc_w,
-                'JOIN_FIELDS':    [vel_asc],
-                'PREDICATE':      [0],          # intersects
-                'SUMMARIES':      [0, 6],       # count=0, mean=6
+            # ── FASE 1: join spaziale con summaries separati ─────────────────
+            # Usa due chiamate separate (solo mean, solo count) per evitare
+            # ambiguità nell'ordine dei campi prodotti da joinbylocationsummary
+            feedback.next_step('Calcolo Va per cella (media ascending)…')
+            tmp_va = self._run('qgis:joinbylocationsummary', {
+                'INPUT':           griglia,
+                'JOIN':            ps_asc_w,
+                'JOIN_FIELDS':     [vel_asc],
+                'PREDICATE':       [0],
+                'SUMMARIES':       [6],          # solo mean
                 'DISCARD_NOMATCH': False,
-                'OUTPUT':         'TEMPORARY_OUTPUT',
+                'OUTPUT':          'TEMPORARY_OUTPUT',
             }, ctx, feedback)
-
-            feedback.next_step('Media Vd e conteggio Nd per cella (join spaziale descending)…')
-            stat_desc = self._run('qgis:joinbylocationsummary', {
-                'INPUT':          griglia,
-                'JOIN':           ps_desc_w,
-                'JOIN_FIELDS':    [vel_desc],
-                'PREDICATE':      [0],
-                'SUMMARIES':      [0, 6],       # count=0, mean=6
-                'DISCARD_NOMATCH': False,
-                'OUTPUT':         'TEMPORARY_OUTPUT',
-            }, ctx, feedback)
-
-            # I campi prodotti si chiamano vel_asc_count, vel_asc_mean, vel_desc_count, vel_desc_mean
-            va_field   = vel_asc  + '_mean'
-            na_field   = vel_asc  + '_count'
-            vd_field   = vel_desc + '_mean'
-            nd_field   = vel_desc + '_count'
-
-            # ── Join Va + Vd + Na + Nd sulla griglia ─────────────────────────
-            feedback.next_step('Join Va + Vd + Na + Nd per cella…')
-            joined = self._run('native:joinattributestable', {
-                'INPUT':              stat_asc,
-                'INPUT_2':            stat_desc,
-                'FIELD':              id_griglia,
-                'FIELD_2':            id_griglia,
-                'FIELDS_TO_COPY':     [vd_field, nd_field],
-                'METHOD':             1,
-                'DISCARD_NONMATCHING': True,
-                'PREFIX':             'desc_',
-                'OUTPUT':             'TEMPORARY_OUTPUT',
-            }, ctx, feedback)
-
-            # Rinomina in Va, Vd, Na, Nd
-            feedback.next_step('Rinomina campi Va, Vd, Na, Nd…')
-            tmp = self._run('native:renametablefield', {
-                'INPUT': joined, 'FIELD': va_field,
+            # Il campo prodotto è l'unico campo aggiunto → nessuna ambiguità
+            _fields_grid = set(f.name() for f in griglia.fields())
+            va_field = next(f.name() for f in tmp_va.fields()
+                            if f.name() not in _fields_grid)
+            feedback.pushInfo(f'Campo Va rilevato: {va_field}')
+            tmp_va = self._run('native:renametablefield', {
+                'INPUT': tmp_va, 'FIELD': va_field,
                 'NEW_NAME': 'Va', 'OUTPUT': 'TEMPORARY_OUTPUT',
             }, ctx, feedback)
-            tmp = self._run('native:renametablefield', {
-                'INPUT': tmp, 'FIELD': na_field,
+
+            feedback.next_step('Calcolo Na per cella (conteggio ascending)…')
+            tmp_na = self._run('qgis:joinbylocationsummary', {
+                'INPUT':           griglia,
+                'JOIN':            ps_asc_w,
+                'JOIN_FIELDS':     [vel_asc],
+                'PREDICATE':       [0],
+                'SUMMARIES':       [0],          # solo count
+                'DISCARD_NOMATCH': False,
+                'OUTPUT':          'TEMPORARY_OUTPUT',
+            }, ctx, feedback)
+            na_field = next(f.name() for f in tmp_na.fields()
+                            if f.name() not in _fields_grid)
+            feedback.pushInfo(f'Campo Na rilevato: {na_field}')
+            tmp_na = self._run('native:renametablefield', {
+                'INPUT': tmp_na, 'FIELD': na_field,
                 'NEW_NAME': 'Na', 'OUTPUT': 'TEMPORARY_OUTPUT',
             }, ctx, feedback)
-            tmp = self._run('native:renametablefield', {
-                'INPUT': tmp, 'FIELD': 'desc_' + vd_field,
+
+            feedback.next_step('Calcolo Vd per cella (media descending)…')
+            tmp_vd = self._run('qgis:joinbylocationsummary', {
+                'INPUT':           griglia,
+                'JOIN':            ps_desc_w,
+                'JOIN_FIELDS':     [vel_desc],
+                'PREDICATE':       [0],
+                'SUMMARIES':       [6],          # solo mean
+                'DISCARD_NOMATCH': False,
+                'OUTPUT':          'TEMPORARY_OUTPUT',
+            }, ctx, feedback)
+            vd_field = next(f.name() for f in tmp_vd.fields()
+                            if f.name() not in _fields_grid)
+            feedback.pushInfo(f'Campo Vd rilevato: {vd_field}')
+            tmp_vd = self._run('native:renametablefield', {
+                'INPUT': tmp_vd, 'FIELD': vd_field,
                 'NEW_NAME': 'Vd', 'OUTPUT': 'TEMPORARY_OUTPUT',
             }, ctx, feedback)
-            tmp = self._run('native:renametablefield', {
-                'INPUT': tmp, 'FIELD': 'desc_' + nd_field,
+
+            feedback.next_step('Calcolo Nd per cella (conteggio descending)…')
+            tmp_nd = self._run('qgis:joinbylocationsummary', {
+                'INPUT':           griglia,
+                'JOIN':            ps_desc_w,
+                'JOIN_FIELDS':     [vel_desc],
+                'PREDICATE':       [0],
+                'SUMMARIES':       [0],          # solo count
+                'DISCARD_NOMATCH': False,
+                'OUTPUT':          'TEMPORARY_OUTPUT',
+            }, ctx, feedback)
+            nd_field = next(f.name() for f in tmp_nd.fields()
+                            if f.name() not in _fields_grid)
+            feedback.pushInfo(f'Campo Nd rilevato: {nd_field}')
+            tmp_nd = self._run('native:renametablefield', {
+                'INPUT': tmp_nd, 'FIELD': nd_field,
                 'NEW_NAME': 'Nd', 'OUTPUT': 'TEMPORARY_OUTPUT',
             }, ctx, feedback)
+
+            # ── Join Va + Na + Vd + Nd sulla griglia ─────────────────────
+            feedback.next_step('Join Va, Na, Vd, Nd per cella…')
+            # Join Va + Na
+            tmp = self._run('native:joinattributestable', {
+                'INPUT':              tmp_va,
+                'INPUT_2':            tmp_na,
+                'FIELD':              id_griglia,
+                'FIELD_2':            id_griglia,
+                'FIELDS_TO_COPY':     ['Na'],
+                'METHOD':             1,
+                'DISCARD_NONMATCHING': False,
+                'PREFIX':             '',
+                'OUTPUT':             'TEMPORARY_OUTPUT',
+            }, ctx, feedback)
+            # Join + Vd
+            tmp = self._run('native:joinattributestable', {
+                'INPUT':              tmp,
+                'INPUT_2':            tmp_vd,
+                'FIELD':              id_griglia,
+                'FIELD_2':            id_griglia,
+                'FIELDS_TO_COPY':     ['Vd'],
+                'METHOD':             1,
+                'DISCARD_NONMATCHING': False,
+                'PREFIX':             '',
+                'OUTPUT':             'TEMPORARY_OUTPUT',
+            }, ctx, feedback)
+            # Join + Nd
+            tmp = self._run('native:joinattributestable', {
+                'INPUT':              tmp,
+                'INPUT_2':            tmp_nd,
+                'FIELD':              id_griglia,
+                'FIELD_2':            id_griglia,
+                'FIELDS_TO_COPY':     ['Nd'],
+                'METHOD':             1,
+                'DISCARD_NONMATCHING': False,
+                'PREFIX':             '',
+                'OUTPUT':             'TEMPORARY_OUTPUT',
+            }, ctx, feedback)
+            # Rinomina id_griglia in ID_griglia
             tmp = self._run('native:renametablefield', {
                 'INPUT': tmp, 'FIELD': id_griglia,
                 'NEW_NAME': 'ID_griglia', 'OUTPUT': 'TEMPORARY_OUTPUT',
@@ -209,11 +275,11 @@ class EwudRunner(QThread):
                 'FORMULA': (
                     f'CASE\n'
                     f'WHEN Va IS NOT NULL AND Vd IS NOT NULL\n'
-                    f'THEN round(({A:.10f}*Vd - {B:.10f}*Va) / {D:.10f}, 1)\n'
+                    f'THEN round(({_f(A)}*Vd - {_f(B)}*Va) / {_f(D)}, 1)\n'
                     f'WHEN Va IS NULL AND Vd IS NOT NULL\n'
-                    f'THEN round({Cd_e:.10f}*Vd, 1)\n'
+                    f'THEN round({_f(Cd_e)}*Vd, 1)\n'
                     f'WHEN Va IS NOT NULL AND Vd IS NULL\n'
-                    f'THEN round({Ca_e:.10f}*Va, 1)\n'
+                    f'THEN round({_f(Ca_e)}*Va, 1)\n'
                     f'ELSE 9999\n'
                     f'END'
                 ),
@@ -227,11 +293,11 @@ class EwudRunner(QThread):
                 'FORMULA': (
                     f'CASE\n'
                     f'WHEN Va IS NOT NULL AND Vd IS NOT NULL\n'
-                    f'THEN round({-Ce_ratio:.10f}*E + {B:.10f}*Va, 1)\n'
+                    f'THEN round({_f(-Ce_ratio)}*E + {_f(B)}*Va, 1)\n'
                     f'WHEN Va IS NULL AND Vd IS NOT NULL\n'
-                    f'THEN round({Cd_u:.10f}*Vd, 1)\n'
+                    f'THEN round({_f(Cd_u)}*Vd, 1)\n'
                     f'WHEN Va IS NOT NULL AND Vd IS NULL\n'
-                    f'THEN round({Ca_u:.10f}*Va, 1)\n'
+                    f'THEN round({_f(Ca_u)}*Va, 1)\n'
                     f'ELSE 9999\n'
                     f'END'
                 ),

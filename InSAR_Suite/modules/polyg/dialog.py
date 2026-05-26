@@ -16,7 +16,8 @@ from qgis.PyQt.QtWidgets import (
     QLabel, QComboBox, QDoubleSpinBox, QSpinBox,
     QPushButton, QCheckBox, QGroupBox, QTextEdit,
     QProgressBar, QMessageBox, QRadioButton,
-    QButtonGroup, QFrame, QLineEdit
+    QButtonGroup, QFrame, QLineEdit, QScrollArea, QWidget,
+    QSizePolicy
 )
 from qgis.PyQt.QtCore import Qt, pyqtSignal, QObject
 from qgis.PyQt.QtGui import QFont
@@ -129,8 +130,22 @@ class InSARPolygonsDialog(QDialog):
         self._populate_layers()
 
     def _build_ui(self):
-        root = QVBoxLayout(self)
+        # Layout esterno della finestra (non scrollabile)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Area scrollabile per il contenuto
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        # Widget contenitore dentro lo scroll
+        container = QWidget()
+        root = QVBoxLayout(container)
         root.setSpacing(8)
+        root.setContentsMargins(8, 8, 8, 8)
 
         title = QLabel("InSAR Polygons — Aree di deformazione")
         f = QFont(); f.setPointSize(11); f.setBold(True)
@@ -276,7 +291,19 @@ class InSARPolygonsDialog(QDialog):
                     self.btn_reset, self.btn_close]:
             btn_row.addWidget(btn)
 
+        # I pulsanti vanno nel container scrollabile
         root.addLayout(btn_row)
+
+        # Collega container → scroll → outer
+        scroll.setWidget(container)
+        outer.addWidget(scroll)
+
+        # Adatta la finestra allo schermo disponibile
+        from qgis.PyQt.QtWidgets import QApplication
+        screen = QApplication.primaryScreen().availableGeometry()
+        max_h = int(screen.height() * 0.85)
+        self.setMaximumHeight(max_h)
+        self.resize(540, min(max_h, 720))
 
     # ── Layer ─────────────────────────────────────────────────────────────────
 
