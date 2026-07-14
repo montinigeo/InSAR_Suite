@@ -17,17 +17,18 @@ from qgis.PyQt.QtWidgets import (
     QPushButton, QCheckBox, QGroupBox, QTextEdit,
     QProgressBar, QMessageBox, QRadioButton,
     QButtonGroup, QFrame, QLineEdit, QScrollArea, QWidget,
-    QSizePolicy
+    QSizePolicy, QFileDialog, QToolButton
 )
-from qgis.PyQt.QtCore import Qt, pyqtSignal, QObject
+from qgis.PyQt.QtCore import Qt, pyqtSignal, QObject, QSize
 from qgis.PyQt.QtGui import QFont
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsField, QgsFeature,
     QgsGeometry, QgsWkbTypes, QgsMessageLog, Qgis,
     QgsFillSymbol, QgsCoordinateTransform, QgsFeatureRequest,
-    QgsTask, QgsApplication
+    QgsTask, QgsApplication, QgsVectorFileWriter, QgsCoordinateTransformContext
 )
 from qgis.PyQt.QtCore import QVariant
+from ..qt_compat import FIELD_INT, FIELD_DOUBLE, FIELD_STRING
 
 from .core import run_analysis, AnalysisWarning
 
@@ -138,8 +139,8 @@ class InSARPolygonsDialog(QDialog):
         # Area scrollabile per il contenuto
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
 
         # Widget contenitore dentro lo scroll
         container = QWidget()
@@ -153,8 +154,8 @@ class InSARPolygonsDialog(QDialog):
         root.addWidget(title)
 
         sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
-        sep.setFrameShadow(QFrame.Sunken)
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShadow(QFrame.Shadow.Sunken)
         root.addWidget(sep)
 
         # ── Input ─────────────────────────────────────────────────────────────
@@ -252,6 +253,20 @@ class InSARPolygonsDialog(QDialog):
         self.chk_add_layer = QCheckBox("Aggiungi al progetto QGIS")
         self.chk_add_layer.setChecked(True)
         g5.addWidget(self.chk_add_layer, 1, 0, 1, 2)
+        self.chk_save = QCheckBox("Salva su file (GeoPackage)")
+        self.chk_save.setChecked(False)
+        g5.addWidget(self.chk_save, 2, 0, 1, 2)
+        row_save = QHBoxLayout()
+        self.le_save_path = QLineEdit()
+        self.le_save_path.setPlaceholderText("Percorso file .gpkg ...")
+        self.le_save_path.setEnabled(False)
+        self.btn_save_path = QToolButton()
+        self.btn_save_path.setText("…")
+        self.btn_save_path.setFixedSize(QSize(28, 28))
+        self.btn_save_path.setEnabled(False)
+        row_save.addWidget(self.le_save_path)
+        row_save.addWidget(self.btn_save_path)
+        g5.addLayout(row_save, 3, 0, 1, 2)
         root.addWidget(grp_out)
 
         # ── Log ───────────────────────────────────────────────────────────────
@@ -268,6 +283,9 @@ class InSARPolygonsDialog(QDialog):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         root.addWidget(self.progress_bar)
+
+        self.chk_save.toggled.connect(self._toggle_save)
+        self.btn_save_path.clicked.connect(self._browse_save)
 
         # ── Pulsanti ──────────────────────────────────────────────────────────
         btn_row = QHBoxLayout()
@@ -327,7 +345,7 @@ class InSARPolygonsDialog(QDialog):
                 self.combo_vel.addItem(field.name())
         for hint in ["vel", "VEL", "velocity", "Velocity",
                      "vel_mm_yr", "VEL_MM_YR", "v_mm_a", "VELOCITY"]:
-            idx = self.combo_vel.findText(hint, Qt.MatchFixedString)
+            idx = self.combo_vel.findText(hint, Qt.MatchFlag.MatchFixedString)
             if idx >= 0:
                 self.combo_vel.setCurrentIndex(idx)
                 break
@@ -343,6 +361,18 @@ class InSARPolygonsDialog(QDialog):
             return None
         return QgsProject.instance().mapLayer(
             self.combo_layer.currentData())
+
+    def _toggle_save(self, checked):
+        self.le_save_path.setEnabled(checked)
+        self.btn_save_path.setEnabled(checked)
+
+    def _browse_save(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Salva layer InSAR Polygons", "", "GeoPackage (*.gpkg)")
+        if path:
+            if not path.endswith(".gpkg"):
+                path += ".gpkg"
+            self.le_save_path.setText(path)
 
     # ── Esecuzione ────────────────────────────────────────────────────────────
 
@@ -439,7 +469,8 @@ class InSARPolygonsDialog(QDialog):
                 self.bridge.progress_signal.disconnect()
                 self.bridge.finished_signal.disconnect()
                 self.bridge.error_signal.disconnect()
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                 pass
             self.bridge = None
         self.log_box.clear()
@@ -533,7 +564,8 @@ class InSARPolygonsDialog(QDialog):
                 self.bridge.progress_signal.disconnect()
                 self.bridge.finished_signal.disconnect()
                 self.bridge.error_signal.disconnect()
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                 pass
             self.bridge = None
         self._reset_buttons()
@@ -571,7 +603,8 @@ class InSARPolygonsDialog(QDialog):
                 self.bridge.progress_signal.disconnect()
                 self.bridge.finished_signal.disconnect()
                 self.bridge.error_signal.disconnect()
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                 pass
             self.bridge = None
         self._reset_buttons()
@@ -587,10 +620,10 @@ class InSARPolygonsDialog(QDialog):
             self._log(f"⚠ {testo.splitlines()[0]}")
             dlg = QMessageBox(self)
             dlg.setWindowTitle("Attenzione — Nessun risultato")
-            dlg.setIcon(QMessageBox.Warning)
+            dlg.setIcon(QMessageBox.Icon.Warning)
             dlg.setText(testo)
-            dlg.setStandardButtons(QMessageBox.Ok)
-            dlg.exec_()
+            dlg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            dlg.exec()
 
         else:
             # Errore imprevisto: mostra il traceback completo
@@ -602,7 +635,7 @@ class InSARPolygonsDialog(QDialog):
         self.log_box.append(msg)
         self.log_box.verticalScrollBar().setValue(
             self.log_box.verticalScrollBar().maximum())
-        QgsMessageLog.logMessage(msg, "InSAR Polygons", Qgis.Info)
+        QgsMessageLog.logMessage(msg, "InSAR Polygons", Qgis.MessageLevel.Info)
 
     # ── Aggiunta layer QGIS ───────────────────────────────────────────────────
 
@@ -614,16 +647,16 @@ class InSARPolygonsDialog(QDialog):
         pr = vl.dataProvider()
 
         field_defs = [
-            ("cluster_id",  QVariant.Int),
-            ("vel_class",   QVariant.String),
-            ("priority",    QVariant.Int),
-            ("n_ps",        QVariant.Int),
-            ("n_unstable",  QVariant.Int),
-            ("vel_mean",    QVariant.Double),
-            ("vel_std",     QVariant.Double),
-            ("vel_min",     QVariant.Double),
-            ("vel_max",     QVariant.Double),
-            ("area_km2",    QVariant.Double),
+            ("cluster_id",  FIELD_INT),
+            ("vel_class",   FIELD_STRING),
+            ("priority",    FIELD_INT),
+            ("n_ps",        FIELD_INT),
+            ("n_unstable",  FIELD_INT),
+            ("vel_mean",    FIELD_DOUBLE),
+            ("vel_std",     FIELD_DOUBLE),
+            ("vel_min",     FIELD_DOUBLE),
+            ("vel_max",     FIELD_DOUBLE),
+            ("area_km2",    FIELD_DOUBLE),
         ]
         pr.addAttributes([QgsField(n, t) for n, t in field_defs])
         vl.updateFields()
@@ -649,9 +682,49 @@ class InSARPolygonsDialog(QDialog):
         pr.addFeatures(feats)
         vl.updateExtents()
         self._apply_classified_style(vl)
-        QgsProject.instance().addMapLayer(vl)
-        self.iface.mapCanvas().refresh()
-        self._log(f"Layer '{out_name}' aggiunto al progetto.")
+
+        # ── Salvataggio permanente su GeoPackage (se richiesto) ─────────────
+        # Fatto DOPO che il layer è già completo in memoria (stesso approccio
+        # usato in EWUD/VIS), per evitare scritture dirette dentro catene di
+        # elaborazione dove i conflitti sul campo fid di GeoPackage possono
+        # corrompere silenziosamente gli attributi.
+        save_path = self.le_save_path.text().strip() if self.chk_save.isChecked() else None
+        if self.chk_save.isChecked() and not save_path:
+            QMessageBox.warning(self, "Attenzione",
+                "Hai selezionato 'Salva su file' ma non hai indicato un percorso.\n"
+                "Il layer verrà comunque aggiunto al progetto solo in memoria.")
+            save_path = None
+
+        final_layer = vl
+        if save_path:
+            opts = QgsVectorFileWriter.SaveVectorOptions()
+            opts.driverName = "GPKG"
+            opts.fileEncoding = "UTF-8"
+            opts.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
+            opts.layerName = out_name
+            err, msg, _, _ = QgsVectorFileWriter.writeAsVectorFormatV3(
+                vl, save_path, QgsCoordinateTransformContext(), opts)
+            if err == QgsVectorFileWriter.WriterError.NoError:
+                import os as _os_poly
+                display_name = _os_poly.path.splitext(_os_poly.path.basename(save_path))[0] or out_name
+                saved_layer = QgsVectorLayer(save_path, display_name, "ogr")
+                if saved_layer.isValid():
+                    self._apply_classified_style(saved_layer)
+                    final_layer = saved_layer
+                    self._log(f"Layer salvato su file: <b>{save_path}</b>")
+                else:
+                    self._log("<span style='color:#f39c12'>⚠ Salvataggio riuscito ma "
+                               "rilettura del file fallita; uso il layer in memoria.</span>")
+            else:
+                QMessageBox.warning(self, "Attenzione",
+                    "Salvataggio fallito:\n" + str(msg) +
+                    "\n\nIl layer verrà comunque aggiunto al progetto solo in memoria.")
+                self._log(f"<span style='color:#e74c3c'>⚠ Salvataggio fallito: {msg}</span>")
+
+        if self.chk_add_layer.isChecked():
+            QgsProject.instance().addMapLayer(final_layer)
+            self.iface.mapCanvas().refresh()
+            self._log(f"Layer '{final_layer.name()}' aggiunto al progetto.")
 
     def _apply_classified_style(self, layer):
         """

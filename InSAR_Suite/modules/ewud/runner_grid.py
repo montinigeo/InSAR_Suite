@@ -222,11 +222,19 @@ class GridRunner(QThread):
 
             # ── Costruisci layer finale ───────────────────────────────────────
             final = outputs['final']
+            # Nome del layer: se è stato salvato su file permanente, usa il
+            # nome del file (senza estensione) così è distinguibile da altre
+            # griglie salvate in run diversi; altrimenti nome generico.
+            if out_path not in ('TEMPORARY_OUTPUT', 'memory:'):
+                import os as _os_grid
+                layer_display_name = _os_grid.path.splitext(_os_grid.path.basename(out_path))[0] or 'InSAR_Grid'
+            else:
+                layer_display_name = 'InSAR_Grid'
             if isinstance(final, QgsVectorLayer):
                 grid_layer = final
-                grid_layer.setName('InSAR_Grid')
+                grid_layer.setName(layer_display_name)
             elif isinstance(final, str):
-                grid_layer = QgsVectorLayer(final, 'InSAR_Grid', 'ogr')
+                grid_layer = QgsVectorLayer(final, layer_display_name, 'ogr')
             else:
                 grid_layer = None
 

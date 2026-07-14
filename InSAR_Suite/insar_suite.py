@@ -9,10 +9,11 @@ Ordine da sinistra a destra: Load → EWUD → VIS → TS
 """
 
 import os
-from qgis.PyQt.QtWidgets import QAction, QToolBar, QMessageBox, QWidget
+from qgis.PyQt.QtGui import QAction  # QGIS 4 / Qt6
+from qgis.PyQt.QtWidgets import QToolBar, QMessageBox, QWidget
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtCore import Qt
-from qgis.core import QgsMessageLog, Qgis
+from qgis.core import Qgis, QgsMessageLog
 
 # ── Verifica dipendenze all'avvio ─────────────────────────────────────────────
 _MISSING_DEPS = []
@@ -69,7 +70,8 @@ class InSARSuite:
         def _preload_ts_libs():
             try:
                 import pandas, numpy, matplotlib, scipy, statsmodels, mplcursors
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                 pass
         threading.Thread(target=_preload_ts_libs, daemon=True).start()
 
@@ -216,7 +218,7 @@ class InSARSuite:
 
         QgsMessageLog.logMessage(
             '✅ Plugin InSAR Suite caricato correttamente.',
-            'InSAR Suite', Qgis.Info
+            'InSAR Suite', Qgis.MessageLevel.Info
         )
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -226,7 +228,8 @@ class InSARSuite:
         try:
             import matplotlib.pyplot as plt
             plt.close('all')
-        except Exception:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
             pass
         # Rimuove le azioni dal menu e dalla toolbar
         for action in self._actions:
@@ -256,7 +259,7 @@ class InSARSuite:
     def _run_ewud(self):
         from .modules.ewud.dialog import EgmsDialog
         dlg = EgmsDialog(self.iface)
-        dlg.exec_()
+        dlg.exec()
 
     # ──────────────────────────────────────────────────────────────────────────
     # Slot VIS

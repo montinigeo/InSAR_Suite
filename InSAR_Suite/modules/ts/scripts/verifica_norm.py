@@ -1,4 +1,5 @@
-from qgis.PyQt.QtWidgets import QAction, QDialog, QVBoxLayout, QDoubleSpinBox, QDialogButtonBox, QMessageBox
+from qgis.PyQt.QtGui import QAction  # QGIS 4 / Qt6
+from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QDoubleSpinBox, QDialogButtonBox, QMessageBox
 from qgis.utils import iface
 from qgis.core import QgsProject
 import numpy as np
@@ -19,7 +20,7 @@ class SogliaDialog(QDialog):
         self.spin.setDecimals(2)
         self.spin.setValue(default_value)
         layout.addWidget(self.spin)
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -62,7 +63,7 @@ class DistribuzioneSpostamentiVelocita:
         # Chiedi soglia correlazione se più di 1 PS selezionato
         if len(self.selected_features) > 1:
             dlg = SogliaDialog()
-            if dlg.exec_() == QDialog.Accepted:
+            if dlg.exec() == QDialog.DialogCode.Accepted:
                 self.soglia_corr = dlg.getValue()
             else:
                 self.soglia_corr = 0.85

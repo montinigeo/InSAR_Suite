@@ -9,7 +9,7 @@ import traceback, math
 from qgis.PyQt.QtCore import QThread, pyqtSignal
 from qgis.core import (
     QgsProcessingContext, QgsProcessingFeedback,
-    QgsVectorLayer
+    QgsVectorLayer, QgsVectorFileWriter, QgsCoordinateTransformContext
 )
 import processing
 def _f(v):
@@ -56,6 +56,25 @@ class EwudRunner(QThread):
 
             griglia    = p['griglia_ricamp']
             id_griglia = p['id_griglia']
+
+            import logging as _logging0, os as _os0, tempfile as _tempfile0
+            _diag0 = _logging0.getLogger("InSAR_Suite.qt_compat")
+            if not _diag0.handlers:
+                _base0 = _os0.path.join(_tempfile0.gettempdir(), "insar_suite_logs")
+                _os0.makedirs(_base0, exist_ok=True)
+                _h0 = _logging0.FileHandler(_os0.path.join(_base0, "insar_suite_qt_compat.log"), encoding="utf-8")
+                _h0.setFormatter(_logging0.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+                _diag0.setLevel(_logging0.DEBUG)
+                _diag0.addHandler(_h0)
+            _fld = griglia.fields().field(id_griglia) if griglia.fields().indexFromName(id_griglia) >= 0 else None
+            _sample_vals = [f[id_griglia] for f in list(griglia.getFeatures())[:3]] if _fld else None
+            _diag0.debug(
+                "[ewud] griglia_ricamp: nome layer=%r | sorgente=%r | campo id_griglia=%r | tipo campo=%r (typeName=%r) | esempio valori=%r (tipi=%r) | n. feature totali=%d",
+                griglia.name(), griglia.source(), id_griglia,
+                (_fld.type() if _fld else None), (_fld.typeName() if _fld else None),
+                _sample_vals, [type(v).__name__ for v in _sample_vals] if _sample_vals else None,
+                griglia.featureCount(),
+            )
             vel_asc    = p['vel_asc']
             vel_desc   = p['vel_desc']
             theta_asc  = p['offnadir_asc']
@@ -345,11 +364,19 @@ class EwudRunner(QThread):
             }, ctx, feedback)
             param_def = prev
 
+            _fld2 = param_def.fields().field('ID_griglia') if param_def.fields().indexFromName('ID_griglia') >= 0 else None
+            _sample_vals2 = [f['ID_griglia'] for f in list(param_def.getFeatures())[:3]] if _fld2 else None
+            _diag0.debug(
+                "[ewud] param_def: campo ID_griglia=%r | tipo campo=%r (typeName=%r) | esempio valori=%r (tipi=%r) | n. feature=%d",
+                ('ID_griglia' if _fld2 else None),
+                (_fld2.type() if _fld2 else None), (_fld2.typeName() if _fld2 else None),
+                _sample_vals2, [type(v).__name__ for v in _sample_vals2] if _sample_vals2 else None,
+                param_def.featureCount(),
+            )
+
             # ── Poligoni_EWUD: griglia + Va, Vd, E, U, vel, ang2, vprev ─────
             feedback.next_step('Join EWUD su griglia (Poligoni_EWUD)…')
-            out_poly = p.get('Poligoni_ewud', 'TEMPORARY_OUTPUT')
-            if out_poly == 'TEMPORARY_OUTPUT':
-                out_poly = 'memory:'
+            out_poly_final = p.get('Poligoni_ewud', 'TEMPORARY_OUTPUT')
             poly = self._run('native:joinattributestable', {
                 'INPUT':               griglia,
                 'INPUT_2':             param_def,
@@ -359,19 +386,78 @@ class EwudRunner(QThread):
                 'METHOD':              1,
                 'DISCARD_NONMATCHING': True,
                 'PREFIX':              '',
-                'OUTPUT':              out_poly,
+                'OUTPUT':              'memory:',
             }, ctx, feedback)
 
             # ── Centroidi_EWUD ────────────────────────────────────────────────
             feedback.next_step('Calcolo centroidi (Centroidi_EWUD)…')
-            out_centr = p.get('Centroidi_ewud', 'TEMPORARY_OUTPUT')
-            if out_centr == 'TEMPORARY_OUTPUT':
-                out_centr = 'memory:'
+            out_centr_final = p.get('Centroidi_ewud', 'TEMPORARY_OUTPUT')
             centr = self._run('native:centroids', {
                 'ALL_PARTS': True,
                 'INPUT':  poly,
-                'OUTPUT': out_centr,
+                'OUTPUT': 'memory:',
             }, ctx, feedback)
+
+            # ── Salvataggio permanente (se richiesto) ───────────────────────
+            # Fatto DOPO che poly/centr sono già completi in memoria, per
+            # evitare che GDAL scriva il GeoPackage direttamente dentro la
+            # catena di processing (dove un conflitto sul campo id/fid può
+            # corrompere silenziosamente gli attributi in output).
+            def _save_permanent(val, out_path, name):
+                import logging as _logging, os as _os, tempfile as _tempfile
+                _diag = _logging.getLogger("InSAR_Suite.qt_compat")
+                if not _diag.handlers:
+                    _base = _os.path.join(_tempfile.gettempdir(), "insar_suite_logs")
+                    _os.makedirs(_base, exist_ok=True)
+                    _h = _logging.FileHandler(_os.path.join(_base, "insar_suite_qt_compat.log"), encoding="utf-8")
+                    _h.setFormatter(_logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+                    _diag.setLevel(_logging.DEBUG)
+                    _diag.addHandler(_h)
+
+                if isinstance(val, QgsVectorLayer):
+                    layer = val
+                elif isinstance(val, str) and val:
+                    layer = QgsVectorLayer(val, name, 'ogr')
+                else:
+                    layer = None
+                if out_path == 'TEMPORARY_OUTPUT' or not out_path:
+                    return layer if layer is not None else val
+
+                _diag.debug("[ewud] _save_permanent(%s): out_path=%r | layer valido=%r | n. feature sorgente=%r | n. campi sorgente=%r",
+                            name, out_path,
+                            (layer.isValid() if layer is not None else None),
+                            (layer.featureCount() if layer is not None and layer.isValid() else None),
+                            (len(layer.fields()) if layer is not None and layer.isValid() else None))
+
+                if layer is None or not layer.isValid():
+                    feedback.pushWarning(f'Salvataggio permanente di {name} fallito: layer di origine non valido.')
+                    _diag.error("[ewud] _save_permanent(%s): layer di origine NON valido, salvataggio annullato.", name)
+                    return val
+
+                _file_esisteva = _os.path.exists(out_path)
+                opts = QgsVectorFileWriter.SaveVectorOptions()
+                opts.driverName = 'GPKG'
+                opts.fileEncoding = 'UTF-8'
+                opts.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
+                opts.layerName = name
+                err, msg, out_path_used, layer_name_used = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    layer, out_path, QgsCoordinateTransformContext(), opts)
+                _diag.debug("[ewud] _save_permanent(%s): file già esistente prima=%r | err=%r | msg=%r | path_usato=%r | layer_usato=%r",
+                            name, _file_esisteva, err, msg, out_path_used, layer_name_used)
+                if err != QgsVectorFileWriter.WriterError.NoError:
+                    feedback.pushWarning(f'Salvataggio permanente di {name} fallito: {msg}')
+                    _diag.error("[ewud] _save_permanent(%s): scrittura fallita: %s", name, msg)
+                    return layer
+                saved = QgsVectorLayer(out_path, layer_name_used or name, 'ogr')
+                _diag.debug("[ewud] _save_permanent(%s): layer ricaricato da disco valido=%r | n. feature=%r | n. campi=%r | esempio attributi 1a feature=%r",
+                            name, saved.isValid(),
+                            (saved.featureCount() if saved.isValid() else None),
+                            (len(saved.fields()) if saved.isValid() else None),
+                            (next(saved.getFeatures()).attributes() if saved.isValid() and saved.featureCount() > 0 else None))
+                return saved if saved.isValid() else layer
+
+            poly  = _save_permanent(poly,  out_poly_final,  'Poligoni_EWUD')
+            centr = _save_permanent(centr, out_centr_final, 'Centroidi_EWUD')
 
             def _to_layer(val, name):
                 if isinstance(val, QgsVectorLayer):

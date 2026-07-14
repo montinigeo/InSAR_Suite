@@ -17,7 +17,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.PyQt.QtGui import QIcon, QFont
 from qgis.PyQt.QtCore import Qt
-from qgis.core import QgsProject, QgsVectorLayer, QgsWkbTypes
+from qgis.core import Qgis, QgsProject, QgsVectorLayer, QgsWkbTypes
 from qgis.gui import QgsMapLayerComboBox, QgsMapToolIdentifyFeature
 try:
     from qgis.core import QgsMapLayerProxyModel
@@ -90,7 +90,7 @@ class TSWidget(QWidget):
 
         # ── Titolo ────────────────────────────────────────────────────────────
         title = QLabel('InSAR TS  ·  Analisi Serie Storiche')
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         f = QFont(); f.setPointSize(12); f.setBold(True)
         title.setFont(f)
         title.setStyleSheet('color: #2980b9; padding: 4px 0 6px 0;')
@@ -221,7 +221,7 @@ class TSWidget(QWidget):
             'InSAR Suite',
             f'Layer attivo impostato: {layer.name()}. '
             'Ora puoi selezionare i punti sulla mappa.',
-            level=0, duration=6
+            level=Qgis.MessageLevel.Info, duration=6
         )
 
     def _update_active_label(self, *args):

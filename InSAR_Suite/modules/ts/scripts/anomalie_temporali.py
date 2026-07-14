@@ -20,7 +20,8 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib
-matplotlib.use('Qt5Agg')
+from qgis.core import Qgis, QgsMessageLog
+matplotlib.use('QtAgg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import mplcursors
@@ -46,6 +47,7 @@ def _qv(v):
         if isinstance(v, _QVT):
             return None if v.isNull() else float(v.value())
     except Exception:
+        v = v  # nessuna azione: si prova comunque la conversione a float sotto
         pass
     try:
         return float(v)
@@ -100,7 +102,7 @@ class AnomalieDialog(QDialog):
         row2.addWidget(self.sp_delta)
         layout.addLayout(row2)
 
-        btn = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btn = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         btn.accepted.connect(self.accept)
         btn.rejected.connect(self.reject)
         layout.addWidget(btn)
@@ -158,7 +160,7 @@ class AnomalieTemporali:
             return
 
         dlg = AnomalieDialog()
-        if not dlg.exec_():
+        if not dlg.exec():
             return
 
         soglia_corr  = dlg.sp_soglia.value()
@@ -366,7 +368,8 @@ class AnomalieTemporali:
                     int(_geo.left() + _geo.width()  * 0.10),
                     int(_geo.top()  + _geo.height() * 0.10)
                 )
-        except Exception:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
             pass
 
         # Avviso in console se ci sono anomalie

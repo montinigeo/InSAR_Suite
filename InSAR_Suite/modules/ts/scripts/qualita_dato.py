@@ -18,7 +18,8 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib
-matplotlib.use('Qt5Agg')
+from qgis.core import Qgis, QgsMessageLog
+matplotlib.use('QtAgg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from scipy import stats
@@ -45,6 +46,7 @@ def _qv(v):
         if isinstance(v, _QVT):
             return None if v.isNull() else float(v.value())
     except Exception:
+        v = v  # nessuna azione: si prova comunque la conversione a float sotto
         pass
     try:
         return float(v)
@@ -70,7 +72,7 @@ class SogliaDialog(QDialog):
         self.spin.setMinimumHeight(26)
         layout.addWidget(self.spin)
 
-        btn = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btn = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         btn.accepted.connect(self.accept)
         btn.rejected.connect(self.reject)
         layout.addWidget(btn)
@@ -143,7 +145,7 @@ class QualitaDato:
         soglia = 0.85
         if len(feats) > 1:
             dlg = SogliaDialog(parent=iface.mainWindow())
-            if not dlg.exec_():
+            if not dlg.exec():
                 return  # utente ha annullato
             soglia = dlg.getValue()
 
@@ -416,15 +418,15 @@ class QualitaDato:
             y0 -= dy
 
         # ── Toolbar trasformazione con ComboBox Qt incorporata nel grafico ────
-        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
         from qgis.PyQt.QtWidgets import (QWidget as _QW, QHBoxLayout as _QH,
                                           QPushButton as _QPB, QComboBox as _QCB,
                                           QLabel as _QL, QVBoxLayout as _QV)
         from qgis.PyQt.QtCore import Qt as _Qt
 
-        # Finestra contenitore Qt — parent=mainWindow() + Qt.Window per renderla
+        # Finestra contenitore Qt — parent=mainWindow() + Qt.WindowType.Window per renderla
         # indipendente e visibile sopra QGIS
-        win = _QW(iface.mainWindow(), _Qt.Window)
+        win = _QW(iface.mainWindow(), _Qt.WindowType.Window)
         win.setWindowTitle('Qualita del dato — velocita PS')
         # Dimensiona la finestra all'80% dello schermo disponibile
         from qgis.PyQt.QtWidgets import QApplication as _QApp
@@ -505,7 +507,8 @@ class QualitaDato:
                 _hl.updateExtents()
                 QgsProject.instance().addMapLayer(_hl)
                 iface.mapCanvas().refresh()
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                 pass
         btn_ps_coe.clicked.connect(_carica_ps_coe)
         bar_lay.addWidget(btn_ps_coe)

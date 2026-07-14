@@ -19,6 +19,23 @@ from qgis.PyQt.QtWidgets import (
     QDialog, QVBoxLayout, QDoubleSpinBox, QDialogButtonBox, QMessageBox
 )
 from qgis.PyQt.QtCore import QVariant
+
+# qt_compat viene caricato tramite percorso assoluto (non import relativo)
+# perché questo script gira via runpy.run_path() come standalone, senza
+# un pacchetto Python "genitore" noto.
+import os as _os
+import importlib.util as _ilu
+_qt_compat_path = _os.path.join(
+    _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
+    "qt_compat.py",
+)
+_spec = _ilu.spec_from_file_location("insar_suite_qt_compat", _qt_compat_path)
+_qt_compat = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_qt_compat)
+FIELD_INT = _qt_compat.FIELD_INT
+FIELD_DOUBLE = _qt_compat.FIELD_DOUBLE
+FIELD_STRING = _qt_compat.FIELD_STRING
+
 import mplcursors
 
 # Registro globale per prevenire garbage collection dei task attivi
@@ -35,6 +52,7 @@ def _qv(v):
         if isinstance(v, _QVT):
             return None if v.isNull() else float(v.value())
     except Exception:
+        v = v  # nessuna azione: si prova comunque la conversione a float sotto
         pass
     try:
         return float(v)
@@ -52,7 +70,7 @@ class SogliaDialog(QDialog):
         self.spin.setDecimals(2)
         self.spin.setValue(default_value)
         layout.addWidget(self.spin)
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -109,7 +127,7 @@ def main():
         soglia_corr = soglia_corr_default
     else:
         dlg = SogliaDialog()
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return  # utente ha annullato
         soglia_corr = dlg.getValue()
 
@@ -145,7 +163,7 @@ class AnalisiCinematicaTask(QgsTask):
             valori = self.df[self.campi_date].apply(pd.to_numeric, errors='coerce')
             n = len(self.df)
             msg_info = ""
-            msg_level = Qgis.Info
+            msg_level = Qgis.MessageLevel.Info
             do_plot = True
 
             if n == 1:
@@ -171,7 +189,7 @@ class AnalisiCinematicaTask(QgsTask):
 
                 if len(ps_coerenti) == 0:
                     msg_info = f"⚠️ Nessun PS coerente trovato tra {n} punti selezionati."
-                    msg_level = Qgis.Warning
+                    msg_level = Qgis.MessageLevel.Warning
                     do_plot = False
                 elif len(ps_coerenti) == 1:
                     msg_info = f"ℹ️ Solo 1 PS coerente trovato su {n} selezionati."
@@ -194,12 +212,12 @@ class AnalisiCinematicaTask(QgsTask):
             return True
 
         except Exception as e:
-            QgsMessageLog.logMessage(f"Errore task: {str(e)}", "InSAR TS", Qgis.Critical)
+            QgsMessageLog.logMessage(f"Errore task: {str(e)}", "InSAR TS", Qgis.MessageLevel.Critical)
             return False
 
     def finished(self, result):
         if not result or self.result is None:
-            QgsMessageLog.logMessage("❌ Task fallito", "InSAR TS", Qgis.Critical)
+            QgsMessageLog.logMessage("❌ Task fallito", "InSAR TS", Qgis.MessageLevel.Critical)
             QMessageBox.critical(None, 'InSAR TS – Errore',
                 'Elaborazione non completata. Controlla il log di QGIS per i dettagli.')
             return
@@ -230,18 +248,18 @@ class AnalisiCinematicaTask(QgsTask):
             pr = vl.dataProvider()
 
             pr.addAttributes([
-                QgsField("data",                  QVariant.String),
-                QgsField("deformazione_media_mm", QVariant.Double),
-                QgsField("dev_standard_mm",       QVariant.Double),
-                QgsField("n_ps_selezionati",      QVariant.Int),
-                QgsField("n_ps_coerenti",         QVariant.Int),
-                QgsField("soglia_correlazione",   QVariant.Double),
+                QgsField("data",                  FIELD_STRING),
+                QgsField("deformazione_media_mm", FIELD_DOUBLE),
+                QgsField("dev_standard_mm",       FIELD_DOUBLE),
+                QgsField("n_ps_selezionati",      FIELD_INT),
+                QgsField("n_ps_coerenti",         FIELD_INT),
+                QgsField("soglia_correlazione",   FIELD_DOUBLE),
             ])
             vl.updateFields()
 
             feats = []
             for _, row in df_media.iterrows():
-                f = QgsFeature()
+                f = QgsFeature(vl.fields())
                 f.setAttributes([
                     row["data"].strftime("%Y-%m-%d"),
                     float(round(row["deformazione_media"], 4)),
@@ -260,18 +278,18 @@ class AnalisiCinematicaTask(QgsTask):
                 "InSAR TS",
                 f"Layer temporaneo 'Serie_media_PS_coerenti' caricato ({len(df_media)} date). "
                 "Tasto destro > Esporta per salvarlo su disco.",
-                level=Qgis.Info, duration=10
+                level=Qgis.MessageLevel.Info, duration=10
             )
             QgsMessageLog.logMessage(
                 f"✅ Layer temporaneo caricato: {len(df_media)} record, "
                 f"{n_coer} PS coerenti su {n_tot} selezionati.",
-                "InSAR TS", Qgis.Info
+                "InSAR TS", Qgis.MessageLevel.Info
             )
 
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"⚠️ Impossibile creare il layer temporaneo: {str(e)}",
-                "InSAR TS", Qgis.Warning
+                "InSAR TS", Qgis.MessageLevel.Warning
             )
 
     def _mostra_grafico(self, df_media, n_tot, n_coer):
@@ -416,32 +434,56 @@ class AnalisiCinematicaTask(QgsTask):
         _nt2 = n_tot
         def _on_carica_ps(event, _ps=_ps_snap2, _lyr=_layer_snap2, _nc=_nc2, _nt=_nt2):
             def _load():
+                import logging as _logging, os as _os, tempfile as _tempfile
+                _diag = _logging.getLogger("InSAR_Suite.qt_compat")
+                if not _diag.handlers:
+                    _base = _os.path.join(_tempfile.gettempdir(), "insar_suite_logs")
+                    _os.makedirs(_base, exist_ok=True)
+                    _h = _logging.FileHandler(_os.path.join(_base, "insar_suite_qt_compat.log"), encoding="utf-8")
+                    _h.setFormatter(_logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+                    _diag.setLevel(_logging.DEBUG)
+                    _diag.addHandler(_h)
                 try:
                     from qgis.core import (QgsVectorLayer, QgsProject,
                                            QgsFeature, QgsWkbTypes)
                     _ps_lyr = _lyr if _lyr is not None else iface.activeLayer()
                     if _ps_lyr is None or _ps is None:
+                        _diag.warning("[analisi_automatica] carica_ps: _ps_lyr o _ps è None, esco. _ps_lyr=%r _ps is None=%r", _ps_lyr, _ps is None)
                         return
                     _hl = QgsVectorLayer('Point?crs=' + _ps_lyr.crs().authid(),
                         'PS_coerenti (' + str(_nc) + '/' + str(_nt) + ')', 'memory')
                     _dp = _hl.dataProvider()
                     _dp.addAttributes(_ps_lyr.fields().toList())
                     _hl.updateFields()
+                    _diag.debug("[analisi_automatica] campi sorgente=%d, campi layer nuovo dopo updateFields=%d",
+                                len(_ps_lyr.fields()), len(_hl.fields()))
                     _codes = set(_ps['CODE'].tolist()) if 'CODE' in _ps.columns else set()
                     _ids = set(_ps['ID'].tolist()) if 'ID' in _ps.columns else set()
+                    _sample_sel = _ps_lyr.selectedFeatures()[0] if _ps_lyr.selectedFeatures() else None
+                    _diag.debug(
+                        "[analisi_automatica] righe in _ps (PS coerenti attese)=%d | esempio _codes=%r (tipo=%s) | "
+                        "esempio valore CODE 1a feature selezionata=%r (tipo=%s)",
+                        len(_ps), list(_codes)[:3], [type(c).__name__ for c in list(_codes)[:3]],
+                        (_sample_sel['CODE'] if _sample_sel is not None and 'CODE' in _sample_sel.fields().names() else None),
+                        type(_sample_sel['CODE']).__name__ if _sample_sel is not None and 'CODE' in _sample_sel.fields().names() else None,
+                    )
                     _feats = []
                     for _f in _ps_lyr.selectedFeatures():
-                        _code = _f['CODE'] if 'CODE' in _f.fields().names() else None
+                        _code = _f['CODE'] if 'CODE' in _f.fields().names() else _f.id()
                         if (_code is not None and _code in _codes) or _f.id() in _ids:
                             _nf = QgsFeature(_hl.fields())
                             _nf.setGeometry(_f.geometry())
                             _nf.setAttributes(_f.attributes())
                             _feats.append(_nf)
+                    _diag.debug("[analisi_automatica] selezionate=%d, matchate=%d, esempio attributi prima feature=%r",
+                                len(_ps_lyr.selectedFeatures()), len(_feats),
+                                _feats[0].attributes() if _feats else None)
                     _dp.addFeatures(_feats)
                     _hl.updateExtents()
                     QgsProject.instance().addMapLayer(_hl)
                     iface.mapCanvas().refresh()
                 except Exception as _e:
+                    _diag.exception("[analisi_automatica] errore in carica_ps: %s", _e)
                     pass
             _QTimer.singleShot(0, _load)
 
@@ -461,7 +503,8 @@ class AnalisiCinematicaTask(QgsTask):
                 _mgr.window.move(
                     int(_geo.left() + _geo.width()  * 0.10),
                     int(_geo.top()  + _geo.height() * 0.10))
-        except Exception:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
             pass
 
 

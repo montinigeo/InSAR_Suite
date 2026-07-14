@@ -21,6 +21,7 @@ import geopandas as gpd
 from scipy.spatial import cKDTree
 from shapely.ops import unary_union
 from shapely.geometry import Point, Polygon, MultiPolygon
+from qgis.core import Qgis, QgsMessageLog
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -163,7 +164,8 @@ def dissolve_and_clip_by_class(buf_geoms, buf_class, buf_priority,
         if claimed is not None and not claimed.is_empty:
             try:
                 merged = merged.difference(claimed)
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                 pass
 
         if merged is None or merged.is_empty:
@@ -292,7 +294,8 @@ def smooth_polygons(records, radius_m):
             if claimed is not None and not claimed.is_empty:
                 try:
                     geom = geom.difference(claimed)
-                except Exception:
+                except Exception as _e:
+                    QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                     pass
             if geom is None or geom.is_empty:
                 continue

@@ -116,8 +116,8 @@ def _group(title, layout):
 
 def _separator():
     line = QFrame()
-    line.setFrameShape(QFrame.HLine)
-    line.setFrameShadow(QFrame.Sunken)
+    line.setFrameShape(QFrame.Shape.HLine)
+    line.setFrameShadow(QFrame.Shadow.Sunken)
     return line
 
 
@@ -153,7 +153,7 @@ def _output_row(label_text):
     edit.setPlaceholderText('Output temporaneo (lascia vuoto)')
     # Forza il colore del testo placeholder a grigio chiaro leggibile
     palette = edit.palette()
-    palette.setColor(QPalette.PlaceholderText, QColor('#7f8c8d'))
+    palette.setColor(QPalette.ColorRole.PlaceholderText, QColor('#7f8c8d'))
     edit.setPalette(palette)
     btn   = QPushButton('…')
     btn.setFixedWidth(28)
@@ -293,7 +293,7 @@ class EgmsDialog(QDialog):
 
         # Logo/titolo
         title = QLabel('InSAR_EWUD  ·  East-West / Up-Down Decomposition')
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         f = QFont(); f.setPointSize(13); f.setBold(True)
         title.setFont(f)
         title.setStyleSheet('color: #2980b9; padding: 4px 0 8px 0;')
@@ -322,7 +322,7 @@ class EgmsDialog(QDialog):
         self.log_box.setReadOnly(True)
         self.log_box.setMinimumHeight(60)
         self.log_box.setMaximumHeight(120)
-        self.log_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.log_box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         main_layout.addWidget(self.log_box)
 
         # Pulsanti
@@ -738,11 +738,21 @@ class EgmsDialog(QDialog):
             'Poligoni_EWUD':  os.path.join(plugin_dir, 'insar_ewud_poligoni.qml'),
         }
 
-        # Raccoglie i layer validi indicizzati per nome
+        # Raccoglie i layer validi indicizzati per nome (chiave interna,
+        # usata anche per la mappa QML sopra)
         valid = {}
         for name, lyr in layers:
             if lyr and lyr.isValid():
-                lyr.setName(name)
+                # Se il layer proviene da un file permanente (non da memoria),
+                # usa il nome del file come nome visualizzato, per distinguere
+                # facilmente run diversi salvati con nomi diversi.
+                src = lyr.source() or ''
+                gpkg_path = src.split('|')[0]  # rimuove eventuale '|layername=...'
+                if gpkg_path and os.path.isfile(gpkg_path):
+                    display_name = os.path.splitext(os.path.basename(gpkg_path))[0] or name
+                else:
+                    display_name = name
+                lyr.setName(display_name)
                 valid[name] = lyr
 
         if not valid:

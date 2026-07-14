@@ -7,7 +7,8 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib
-matplotlib.use("Qt5Agg")
+from qgis.core import Qgis, QgsMessageLog
+matplotlib.use("QtAgg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
@@ -124,7 +125,8 @@ def disegna_confronto(date, t, risultati, soglia):
                 int(_geo.top()  + _geo.height() * 0.10))
             fig_manager.window.raise_()
             fig_manager.window.activateWindow()
-    except Exception:
+    except Exception as _e:
+        QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
         pass
     return fig
 
@@ -132,7 +134,7 @@ def disegna_confronto(date, t, risultati, soglia):
 class ConfrontoZonePanel(QDialog):
 
     def __init__(self, layer, campi_d, parent=None):
-        super().__init__(parent, Qt.Window | Qt.WindowStaysOnTopHint)
+        super().__init__(parent, Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
         self.setWindowTitle("InSAR TS - Confronto tra zone")
         self.setMinimumWidth(370)
 
@@ -180,7 +182,7 @@ class ConfrontoZonePanel(QDialog):
         layout.addLayout(row_s)
 
         sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
+        sep.setFrameShape(QFrame.Shape.HLine)
         layout.addWidget(sep)
 
         self._labels = {}
@@ -206,7 +208,7 @@ class ConfrontoZonePanel(QDialog):
             layout.addWidget(grp)
 
         sep2 = QFrame()
-        sep2.setFrameShape(QFrame.HLine)
+        sep2.setFrameShape(QFrame.Shape.HLine)
         layout.addWidget(sep2)
 
         self.btn_calcola = QPushButton("  Calcola confronto")
@@ -258,7 +260,8 @@ class ConfrontoZonePanel(QDialog):
                 if hasattr(mgr, "window"):
                     mgr.window.raise_()
                     mgr.window.activateWindow()
-        except Exception:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
             pass
         event.accept()
 

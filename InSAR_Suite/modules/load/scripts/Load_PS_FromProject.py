@@ -3,8 +3,10 @@
 import os
 from qgis.PyQt.QtCore import QObject, pyqtSlot
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QInputDialog
-from qgis.core import QgsProject, QgsVectorLayer
+from qgis.PyQt.QtGui import QAction  # QGIS 4 / Qt6
+from qgis.PyQt.QtWidgets import QInputDialog
+from qgis.core import Qgis, QgsProject, QgsVectorLayer
+from qgis.core import QgsMessageLog
 
 
 class _SelectionHandler(QObject):
@@ -66,14 +68,16 @@ class LoadPS_FromProject:
             if layer:
                 try:
                     layer.selectionChanged.disconnect(handler.on_selection_changed)
-                except:
+                except Exception as _e:
+                    QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                     pass
 
         self.layer_selection_handlers.clear()
 
         try:
             QgsProject.instance().layersWillBeRemoved.disconnect(self.on_layers_will_be_removed)
-        except:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
             pass
 
     def on_layers_will_be_removed(self, layer_ids):
@@ -83,7 +87,8 @@ class LoadPS_FromProject:
                 if layer:
                     try:
                         layer.selectionChanged.disconnect(self.layer_selection_handlers[layer_id].on_selection_changed)
-                    except:
+                    except Exception as _e:
+                        QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                         pass
                 del self.layer_selection_handlers[layer_id]
 
@@ -141,7 +146,7 @@ class LoadPS_FromProject:
         self.iface.messageBar().pushMessage(
             "Load_PS",
             "Seleziona i poligoni per caricare i layer.",
-            level=0, duration=8
+            level=Qgis.MessageLevel.Info, duration=8
         )
 
         layer_id = quadro_layer.id()
@@ -150,7 +155,8 @@ class LoadPS_FromProject:
         if layer_id in self.layer_selection_handlers:
             try:
                 quadro_layer.selectionChanged.disconnect(self.layer_selection_handlers[layer_id].on_selection_changed)
-            except:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                 pass
 
         # Crea handler come QObject persistente

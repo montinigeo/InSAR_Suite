@@ -22,6 +22,7 @@ def _qv(v):
         if isinstance(v, _QVT):
             return None if v.isNull() else float(v.value())
     except Exception:
+        v = v  # nessuna azione: si prova comunque la conversione a float sotto
         pass
     try:
         return float(v)
@@ -116,7 +117,7 @@ class AnalisiCinematicaTask(QgsTask):
             valori = self.df[self.campi_date].apply(pd.to_numeric, errors='coerce')
             n = len(self.df)
             msg_info = ""
-            msg_level = Qgis.Info
+            msg_level = Qgis.MessageLevel.Info
             do_plot = True
 
             if n == 1:
@@ -142,7 +143,7 @@ class AnalisiCinematicaTask(QgsTask):
 
                 if len(ps_coerenti) == 0:
                     msg_info = f"⚠️ Nessun PS coerente trovato tra {n} punti selezionati."
-                    msg_level = Qgis.Warning
+                    msg_level = Qgis.MessageLevel.Warning
                     do_plot = False
                 elif len(ps_coerenti) == 1:
                     msg_info = f"ℹ️ Solo 1 PS coerente trovato su {n} selezionati."
@@ -161,12 +162,12 @@ class AnalisiCinematicaTask(QgsTask):
             return True
 
         except Exception as e:
-            QgsMessageLog.logMessage(f"Errore task: {str(e)}", "Cinematica", Qgis.Critical)
+            QgsMessageLog.logMessage(f"Errore task: {str(e)}", "Cinematica", Qgis.MessageLevel.Critical)
             return False
 
     def finished(self, result):
         if not result or self.result is None:
-            QgsMessageLog.logMessage("❌ Task fallito", "Cinematica", Qgis.Critical)
+            QgsMessageLog.logMessage("❌ Task fallito", "Cinematica", Qgis.MessageLevel.Critical)
             QMessageBox.critical(None, 'InSAR TS – Errore',
                 'Elaborazione non completata. Controlla il log di QGIS per i dettagli.')
             return
@@ -252,29 +253,54 @@ class AnalisiCinematicaTask(QgsTask):
             _nt_snap = n
             def _on_carica_ps(event, _ps=_ps_snap, _lyr=_layer_snap, _nc=_nc_snap, _nt=_nt_snap):
                 def _load():
+                    import logging as _logging, os as _os, tempfile as _tempfile
+                    _diag = _logging.getLogger("InSAR_Suite.qt_compat")
+                    if not _diag.handlers:
+                        _base = _os.path.join(_tempfile.gettempdir(), "insar_suite_logs")
+                        _os.makedirs(_base, exist_ok=True)
+                        _h = _logging.FileHandler(_os.path.join(_base, "insar_suite_qt_compat.log"), encoding="utf-8")
+                        _h.setFormatter(_logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+                        _diag.setLevel(_logging.DEBUG)
+                        _diag.addHandler(_h)
                     try:
                         from qgis.core import QgsVectorLayer, QgsProject, QgsFeature
                         _ps_lyr = _lyr if _lyr is not None else iface.activeLayer()
-                        if _ps_lyr is None: return
+                        if _ps_lyr is None:
+                            _diag.warning("[scomposizione] carica_ps: _ps_lyr è None, esco.")
+                            return
                         _hl = QgsVectorLayer("Point?crs=" + _ps_lyr.crs().authid(),
                             "PS_coerenti (" + str(_nc) + "/" + str(_nt) + ")", "memory")
                         _dp = _hl.dataProvider()
                         _dp.addAttributes(_ps_lyr.fields().toList())
                         _hl.updateFields()
+                        _diag.debug("[scomposizione] campi sorgente=%d, campi layer nuovo=%d",
+                                    len(_ps_lyr.fields()), len(_hl.fields()))
                         _codes = set(_ps["CODE"].tolist()) if "CODE" in _ps.columns else set()
                         _ids = set(_ps["ID"].tolist()) if "ID" in _ps.columns else set()
+                        _sample_sel = _ps_lyr.selectedFeatures()[0] if _ps_lyr.selectedFeatures() else None
+                        _diag.debug(
+                            "[scomposizione] righe in _ps (PS coerenti attese)=%d | esempio _codes=%r (tipo=%s) | "
+                            "esempio valore CODE 1a feature selezionata=%r (tipo=%s)",
+                            len(_ps), list(_codes)[:3], [type(c).__name__ for c in list(_codes)[:3]],
+                            (_sample_sel["CODE"] if _sample_sel is not None and "CODE" in _sample_sel.fields().names() else None),
+                            type(_sample_sel["CODE"]).__name__ if _sample_sel is not None and "CODE" in _sample_sel.fields().names() else None,
+                        )
                         _feats = []
                         for _f in _ps_lyr.selectedFeatures():
-                            _c = _f["CODE"] if "CODE" in _f.fields().names() else None
+                            _c = _f["CODE"] if "CODE" in _f.fields().names() else _f.id()
                             if (_c is not None and _c in _codes) or _f.id() in _ids:
                                 _nf = QgsFeature(_hl.fields())
                                 _nf.setGeometry(_f.geometry())
                                 _nf.setAttributes(_f.attributes())
                                 _feats.append(_nf)
+                        _diag.debug("[scomposizione] selezionate=%d, matchate=%d, esempio attributi prima feature=%r",
+                                    len(_ps_lyr.selectedFeatures()), len(_feats),
+                                    _feats[0].attributes() if _feats else None)
                         _dp.addFeatures(_feats); _hl.updateExtents()
                         QgsProject.instance().addMapLayer(_hl)
                         iface.mapCanvas().refresh()
-                    except Exception: pass
+                    except Exception as _e:
+                        _diag.exception("[scomposizione] errore in carica_ps: %s", _e)
                 _QTimer.singleShot(0, _load)
             _btn_ps.on_clicked(_on_carica_ps)
             self._btn_ps = _btn_ps
@@ -291,11 +317,12 @@ class AnalisiCinematicaTask(QgsTask):
                     _mgr.window.move(
                         int(_geo.left() + _geo.width()  * 0.10),
                         int(_geo.top()  + _geo.height() * 0.10))
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Warning)
                 pass
 
         except Exception as e:
-            QgsMessageLog.logMessage(f"⚠️ Impossibile scomporre la serie storica: {str(e)}", "Cinematica", Qgis.Warning)
+            QgsMessageLog.logMessage(f"⚠️ Impossibile scomporre la serie storica: {str(e)}", "Cinematica", Qgis.MessageLevel.Warning)
 
 
 main()

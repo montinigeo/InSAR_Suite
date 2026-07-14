@@ -24,6 +24,10 @@ from qgis.core import (
 )
 from qgis.gui import QgsMapLayerComboBox, QgsExtentWidget
 from qgis.PyQt.QtCore import QVariant
+from ..qt_compat import (
+    field_type as _qt_field_type,
+    FIELD_INT, FIELD_LONGLONG, FIELD_DOUBLE, FIELD_STRING, FIELD_DATE, FIELD_DATETIME,
+)
 
 gdal.UseExceptions()
 
@@ -348,20 +352,20 @@ class InSARTask(QgsTask):
         self._chk()
 
         OGR_TO_QVARIANT = {
-            ogr.OFTInteger:   QVariant.Int,
-            ogr.OFTInteger64: QVariant.LongLong,
-            ogr.OFTReal:      QVariant.Double,
-            ogr.OFTString:    QVariant.String,
-            ogr.OFTDate:      QVariant.Date,
-            ogr.OFTDateTime:  QVariant.DateTime,
+            ogr.OFTInteger:   FIELD_INT,
+            ogr.OFTInteger64: FIELD_LONGLONG,
+            ogr.OFTReal:      FIELD_DOUBLE,
+            ogr.OFTString:    FIELD_STRING,
+            ogr.OFTDate:      FIELD_DATE,
+            ogr.OFTDateTime:  FIELD_DATETIME,
         }
         fields = QgsFields()
         for fd in field_defs:
             fields.append(QgsField(fd["name"],
-                OGR_TO_QVARIANT.get(fd["ogr_type"], QVariant.String)))
-        fields.append(QgsField("esp1",   QVariant.Double))
-        fields.append(QgsField("inc1",   QVariant.Double))
-        fields.append(QgsField("pc_mov", QVariant.Double))
+                OGR_TO_QVARIANT.get(fd["ogr_type"], FIELD_STRING)))
+        fields.append(QgsField("esp1",   FIELD_DOUBLE))
+        fields.append(QgsField("inc1",   FIELD_DOUBLE))
+        fields.append(QgsField("pc_mov", FIELD_DOUBLE))
 
         mem = QgsVectorLayer("Point?crs=" + ps_id, out_name, "memory")
         dp  = mem.dataProvider()
@@ -481,8 +485,8 @@ class InSARVISDialog(QDialog):
         v.addLayout(sat)
 
         sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
-        sep.setFrameShadow(QFrame.Sunken)
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShadow(QFrame.Shadow.Sunken)
         v.addWidget(sep)
 
         pg = QGridLayout()
@@ -801,7 +805,7 @@ class InSARVISDialog(QDialog):
                 err, msg, _, _ = QgsVectorFileWriter.writeAsVectorFormatV3(
                     result, save_path,
                     QgsCoordinateTransformContext(), opts)
-                if err == QgsVectorFileWriter.NoError:
+                if err == QgsVectorFileWriter.WriterError.NoError:
                     saved_layer = QgsVectorLayer(save_path, result.name(), "ogr")
                     _apply_qml(saved_layer)
                     QgsProject.instance().addMapLayer(saved_layer)
@@ -848,8 +852,8 @@ class InSARVISDialog(QDialog):
             reply = QMessageBox.question(
                 self, "Elaborazione in corso",
                 "Un elaborazione e in corso. Annullarla e chiudere?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.Yes:
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
                 self._closing = True
                 self.task.cancel()
                 event.accept()
