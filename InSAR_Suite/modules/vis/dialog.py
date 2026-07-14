@@ -134,9 +134,7 @@ class InSARTask(QgsTask):
     stepProgress = pyqtSignal(int, str)
 
     def __init__(self, params, on_done, on_error, on_cancelled):
-        super().__init__("InSAR VIS",
-            QgsTask.CanCancel if hasattr(QgsTask, "CanCancel")
-            else QgsTask.Flag.CanCancel)
+        super().__init__("InSAR VIS", QgsTask.Flag.CanCancel)
         self.params        = params
         self._result       = None
         self._error        = None
@@ -417,7 +415,7 @@ class InSARVISDialog(QDialog):
         g.addWidget(QLabel("Shapefile PS (punti):"), 0, 0)
         row = QHBoxLayout()
         self.cb_ps = QgsMapLayerComboBox()
-        self.cb_ps.setFilters(QgsMapLayerProxyModel.PointLayer)
+        self.cb_ps.setFilters(QgsMapLayerProxyModel.Filter.PointLayer)
         row.addWidget(self.cb_ps)
         self.btn_browse_ps = QToolButton()
         self.btn_browse_ps.setText("…")
@@ -428,7 +426,7 @@ class InSARVISDialog(QDialog):
         g.addWidget(QLabel("Raster quote (DEM):"), 1, 0)
         row2 = QHBoxLayout()
         self.cb_dem = QgsMapLayerComboBox()
-        self.cb_dem.setFilters(QgsMapLayerProxyModel.RasterLayer)
+        self.cb_dem.setFilters(QgsMapLayerProxyModel.Filter.RasterLayer)
         row2.addWidget(self.cb_dem)
         self.btn_browse_dem = QToolButton()
         self.btn_browse_dem.setText("…")

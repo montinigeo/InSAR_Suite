@@ -111,7 +111,7 @@ class TSWidget(QWidget):
 
         h_layer = QHBoxLayout()
         self.cb_layer = QgsMapLayerComboBox()
-        self.cb_layer.setFilters(QgsMapLayerProxyModel.PointLayer)
+        self.cb_layer.setFilters(QgsMapLayerProxyModel.Filter.PointLayer)
         self.cb_layer.setAllowEmptyLayer(True)
         self.cb_layer.setCurrentIndex(0)
         self.cb_layer.setStyleSheet(self._combo_style())
@@ -227,7 +227,7 @@ class TSWidget(QWidget):
     def _update_active_label(self, *args):
         layer = self.iface.activeLayer()
         if layer and isinstance(layer, QgsVectorLayer) and \
-                layer.geometryType() == QgsWkbTypes.PointGeometry:
+                layer.geometryType() == QgsWkbTypes.GeometryType.PointGeometry:
             self.lbl_active.setText(f'Layer attivo corrente: {layer.name()}')
             self.lbl_active.setStyleSheet(
                 'color:#2ecc71; font-size:11px; padding: 2px 0;'
@@ -277,7 +277,7 @@ class TSWidget(QWidget):
             return
 
         if not isinstance(layer, QgsVectorLayer) or \
-                layer.geometryType() != QgsWkbTypes.PointGeometry:
+                layer.geometryType() != QgsWkbTypes.GeometryType.PointGeometry:
             QMessageBox.warning(
                 self, 'Layer non valido',
                 f'Il layer attivo "{layer.name()}" non è un layer puntuale PS.\n'

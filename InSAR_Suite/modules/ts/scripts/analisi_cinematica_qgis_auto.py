@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import re
+from qgis.utils import iface
 
 from qgis.core import (
 
@@ -150,7 +151,7 @@ def main():
 # ================= QGIS TASK =================
 class AnalisiCinematicaTask(QgsTask):
     def __init__(self, description, df, date, soglia_corr, campi_date, layer=None):
-        super().__init__(description, QgsTask.CanCancel if hasattr(QgsTask, "CanCancel") else QgsTask.Flag.CanCancel)
+        super().__init__(description, QgsTask.Flag.CanCancel)
         self.layer = layer
         self.df = df.copy()
         self.date = date

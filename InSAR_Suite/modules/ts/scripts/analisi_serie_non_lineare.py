@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import os
 from qgis.core import QgsTask, QgsMessageLog, Qgis, QgsApplication
+from qgis.utils import iface
 from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox, QInputDialog
 import mplcursors
 import pwlf
@@ -126,7 +127,7 @@ def main():
 class AnalisiCinematicaTask(QgsTask):
     def __init__(self, description, df, date, soglia_corr, campi_date,
                  salva_excel, percorso_excel, n_seg_utente=0, layer=None):
-        super().__init__(description, QgsTask.CanCancel if hasattr(QgsTask, "CanCancel") else QgsTask.Flag.CanCancel)
+        super().__init__(description, QgsTask.Flag.CanCancel)
         self.layer = layer
         self.df = df.copy()
         self.date = date
@@ -256,7 +257,6 @@ class AnalisiCinematicaTask(QgsTask):
                 'un\'area con PS cinematicamente più omogenei.')
             return
         # ── PLOT ──────────────────────────────────────────────────────────────
-        import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
         plt.close('all')
 

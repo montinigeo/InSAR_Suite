@@ -50,7 +50,7 @@ class TaskBridge(QObject):
 
 class InSARTask(QgsTask):
     def __init__(self, arrays, analysis_params, bridge):
-        super().__init__("InSAR Polygons — analisi", QgsTask.CanCancel)
+        super().__init__("InSAR Polygons — analisi", QgsTask.Flag.CanCancel)
         # arrays: dict con coords_all_proj, vel_all, coords_unst_proj, vel_unst
         self.arrays          = arrays
         self.analysis_params = analysis_params
@@ -330,7 +330,7 @@ class InSARPolygonsDialog(QDialog):
         self.combo_layer.clear()
         for layer in QgsProject.instance().mapLayers().values():
             if (isinstance(layer, QgsVectorLayer) and
-                    layer.geometryType() == QgsWkbTypes.PointGeometry):
+                    layer.geometryType() == QgsWkbTypes.GeometryType.PointGeometry):
                 self.combo_layer.addItem(layer.name(), layer.id())
         self.combo_layer.blockSignals(False)
         self._on_layer_changed()
@@ -500,7 +500,7 @@ class InSARPolygonsDialog(QDialog):
             features = layer.selectedFeatures()
         elif mode == "canvas":
             request.setFilterRect(extract_params["canvas_rect"])
-            request.setFlags(QgsFeatureRequest.ExactIntersect)
+            request.setFlags(QgsFeatureRequest.Flag.ExactIntersect)
             features = layer.getFeatures(request)
         else:
             features = layer.getFeatures()

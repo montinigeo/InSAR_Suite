@@ -1,5 +1,6 @@
 from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox
 from qgis.core import QgsTask, QgsMessageLog, Qgis, QgsApplication
+from qgis.utils import iface
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -104,7 +105,7 @@ def main():
 # ================= QGIS TASK =================
 class AnalisiCinematicaTask(QgsTask):
     def __init__(self, description, df, date, soglia_corr, campi_date, layer=None):
-        super().__init__(description, QgsTask.CanCancel if hasattr(QgsTask, "CanCancel") else QgsTask.Flag.CanCancel)
+        super().__init__(description, QgsTask.Flag.CanCancel)
         self.layer = layer
         self.df = df.copy()
         self.date = date

@@ -147,7 +147,7 @@ def _layer_combo(layer_type):
 
 def _output_row(label_text):
     """Riga con QLineEdit + bottone '...' per scegliere il file di output."""
-    from qgis.PyQt.QtGui import QPalette, QColor
+    from qgis.PyQt.QtGui import QPalette
     row   = QHBoxLayout()
     edit  = QLineEdit()
     edit.setPlaceholderText('Output temporaneo (lascia vuoto)')
@@ -404,13 +404,13 @@ class EgmsDialog(QDialog):
 
         # ── PS Ascending ──────────────────────────────────────────────────────
         asc_form = QFormLayout()
-        self.g_ps_asc = _layer_combo(QgsMapLayerProxyModel.PointLayer)
+        self.g_ps_asc = _layer_combo(QgsMapLayerProxyModel.Filter.PointLayer)
         asc_form.addRow('PS Ascendenti:', self.g_ps_asc)
         layout.addWidget(_group('PS Ascending', asc_form))
 
         # ── PS Descending ─────────────────────────────────────────────────────
         desc_form = QFormLayout()
-        self.g_ps_desc = _layer_combo(QgsMapLayerProxyModel.PointLayer)
+        self.g_ps_desc = _layer_combo(QgsMapLayerProxyModel.Filter.PointLayer)
         desc_form.addRow('PS Discendenti:', self.g_ps_desc)
         layout.addWidget(_group('PS Descending', desc_form))
 
@@ -441,7 +441,7 @@ class EgmsDialog(QDialog):
 
         # ── Griglia ───────────────────────────────────────────────────────────
         grid_form = QFormLayout()
-        self.e_griglia = _layer_combo(QgsMapLayerProxyModel.PolygonLayer)
+        self.e_griglia = _layer_combo(QgsMapLayerProxyModel.Filter.PolygonLayer)
         self.e_griglia.layerChanged.connect(self._on_grid_layer_changed)
         grid_form.addRow('Griglia ricampionamento:', self.e_griglia)
 
@@ -480,12 +480,12 @@ class EgmsDialog(QDialog):
 
         # ── PS Ascending ──────────────────────────────────────────────────────
         asc_form = QFormLayout()
-        self.e_ps_asc = _layer_combo(QgsMapLayerProxyModel.PointLayer)
+        self.e_ps_asc = _layer_combo(QgsMapLayerProxyModel.Filter.PointLayer)
         self.e_ps_asc.layerChanged.connect(self._on_asc_layer_changed)
         asc_form.addRow('Layer PS:', self.e_ps_asc)
 
         self.e_vel_asc = QgsFieldComboBox()
-        self.e_vel_asc.setFilters(QgsFieldProxyModel.Numeric)
+        self.e_vel_asc.setFilters(QgsFieldProxyModel.Filter.Numeric)
         self.e_vel_asc.setLayer(self.e_ps_asc.currentLayer())
         self.e_vel_asc.setStyleSheet('background:#ffffff;color:#2c3e50;border:1px solid #b0c4d8;border-radius:3px;padding:3px 6px;min-height:22px;')
         asc_form.addRow('Campo velocità LOS:', self.e_vel_asc)
@@ -511,12 +511,12 @@ class EgmsDialog(QDialog):
 
         # ── PS Descending ─────────────────────────────────────────────────────
         desc_form = QFormLayout()
-        self.e_ps_desc = _layer_combo(QgsMapLayerProxyModel.PointLayer)
+        self.e_ps_desc = _layer_combo(QgsMapLayerProxyModel.Filter.PointLayer)
         self.e_ps_desc.layerChanged.connect(self._on_desc_layer_changed)
         desc_form.addRow('Layer PS:', self.e_ps_desc)
 
         self.e_vel_desc = QgsFieldComboBox()
-        self.e_vel_desc.setFilters(QgsFieldProxyModel.Numeric)
+        self.e_vel_desc.setFilters(QgsFieldProxyModel.Filter.Numeric)
         self.e_vel_desc.setLayer(self.e_ps_desc.currentLayer())
         self.e_vel_desc.setStyleSheet('background:#ffffff;color:#2c3e50;border:1px solid #b0c4d8;border-radius:3px;padding:3px 6px;min-height:22px;')
         desc_form.addRow('Campo velocità LOS:', self.e_vel_desc)
