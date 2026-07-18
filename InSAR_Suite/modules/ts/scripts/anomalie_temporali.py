@@ -20,6 +20,7 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib
+from qgis.core import Qgis, QgsMessageLog
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -46,6 +47,7 @@ def _qv(v):
         if isinstance(v, _QVT):
             return None if v.isNull() else float(v.value())
     except Exception:
+        v = v  # nessuna azione: si prova comunque la conversione a float sotto
         pass
     try:
         return float(v)
@@ -366,7 +368,8 @@ class AnomalieTemporali:
                     int(_geo.left() + _geo.width()  * 0.10),
                     int(_geo.top()  + _geo.height() * 0.10)
                 )
-        except Exception:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
             pass
 
         # Avviso in console se ci sono anomalie

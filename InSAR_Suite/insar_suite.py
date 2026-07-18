@@ -12,7 +12,7 @@ import os
 from qgis.PyQt.QtWidgets import QAction, QToolBar, QMessageBox, QWidget
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtCore import Qt
-from qgis.core import QgsMessageLog, Qgis
+from qgis.core import Qgis, QgsMessageLog
 
 # ── Verifica dipendenze all'avvio ─────────────────────────────────────────────
 _MISSING_DEPS = []
@@ -69,7 +69,8 @@ class InSARSuite:
         def _preload_ts_libs():
             try:
                 import pandas, numpy, matplotlib, scipy, statsmodels, mplcursors
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                 pass
         threading.Thread(target=_preload_ts_libs, daemon=True).start()
 
@@ -226,7 +227,8 @@ class InSARSuite:
         try:
             import matplotlib.pyplot as plt
             plt.close('all')
-        except Exception:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
             pass
         # Rimuove le azioni dal menu e dalla toolbar
         for action in self._actions:

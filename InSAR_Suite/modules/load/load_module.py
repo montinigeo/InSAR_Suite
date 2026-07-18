@@ -8,6 +8,7 @@ come semplici metodi callable, senza registrare toolbar/menu propri
 import os
 from .scripts.Load_PS_FromFile import LoadPS_FromFile
 from .scripts.Load_PS_FromProject import LoadPS_FromProject
+from qgis.core import Qgis, QgsMessageLog
 
 
 class LoadModule:
@@ -39,7 +40,8 @@ class LoadModule:
                 if layer:
                     try:
                         layer.selectionChanged.disconnect(handler.on_selection_changed)
-                    except Exception:
+                    except Exception as _e:
+                        QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                         pass
             h_dict.clear()
 
@@ -50,7 +52,8 @@ class LoadModule:
                 QgsProject.instance().layersWillBeRemoved.disconnect(
                     obj.on_layers_will_be_removed
                 )
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                 pass
 
     def run_from_file(self):

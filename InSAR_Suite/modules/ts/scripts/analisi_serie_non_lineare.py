@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import os
 from qgis.core import QgsTask, QgsMessageLog, Qgis, QgsApplication
+from qgis.utils import iface
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QInputDialog
 import mplcursors
 import pwlf
@@ -26,6 +27,7 @@ def _qv(v):
         if isinstance(v, _QVT):
             return None if v.isNull() else float(v.value())
     except Exception:
+        v = v  # nessuna azione: si prova comunque la conversione a float sotto
         pass
     try:
         return float(v)
@@ -255,7 +257,6 @@ class AnalisiCinematicaTask(QgsTask):
                 'un\'area con PS cinematicamente più omogenei.')
             return
         # ── PLOT ──────────────────────────────────────────────────────────────
-        import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
         plt.close('all')
 
@@ -423,7 +424,7 @@ class AnalisiCinematicaTask(QgsTask):
                     _ids = set(_ps["ID"].tolist()) if "ID" in _ps.columns else set()
                     _feats = []
                     for _f in _ps_lyr.selectedFeatures():
-                        _c = _f["CODE"] if "CODE" in _f.fields().names() else None
+                        _c = _f["CODE"] if "CODE" in _f.fields().names() else _f.id()
                         if (_c is not None and _c in _codes) or _f.id() in _ids:
                             _nf = QgsFeature(_hl.fields())
                             _nf.setGeometry(_f.geometry())
@@ -433,7 +434,8 @@ class AnalisiCinematicaTask(QgsTask):
                     _hl.updateExtents()
                     QgsProject.instance().addMapLayer(_hl)
                     iface.mapCanvas().refresh()
-                except Exception:
+                except Exception as _e:
+                    QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                     pass
             _QTimer.singleShot(0, _load)
         _btn_ps.on_clicked(_on_carica_ps)
@@ -451,7 +453,8 @@ class AnalisiCinematicaTask(QgsTask):
                 _mgr.window.move(
                     int(_geo.left() + _geo.width()  * 0.10),
                     int(_geo.top()  + _geo.height() * 0.10))
-        except Exception:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
             pass
 
 

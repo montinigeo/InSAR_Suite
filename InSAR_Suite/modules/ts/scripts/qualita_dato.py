@@ -18,6 +18,7 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib
+from qgis.core import Qgis, QgsMessageLog
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -45,6 +46,7 @@ def _qv(v):
         if isinstance(v, _QVT):
             return None if v.isNull() else float(v.value())
     except Exception:
+        v = v  # nessuna azione: si prova comunque la conversione a float sotto
         pass
     try:
         return float(v)
@@ -505,7 +507,8 @@ class QualitaDato:
                 _hl.updateExtents()
                 QgsProject.instance().addMapLayer(_hl)
                 iface.mapCanvas().refresh()
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                 pass
         btn_ps_coe.clicked.connect(_carica_ps_coe)
         bar_lay.addWidget(btn_ps_coe)

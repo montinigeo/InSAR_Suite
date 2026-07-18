@@ -7,6 +7,7 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib
+from qgis.core import Qgis, QgsMessageLog
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -124,7 +125,8 @@ def disegna_confronto(date, t, risultati, soglia):
                 int(_geo.top()  + _geo.height() * 0.10))
             fig_manager.window.raise_()
             fig_manager.window.activateWindow()
-    except Exception:
+    except Exception as _e:
+        QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
         pass
     return fig
 
@@ -258,7 +260,8 @@ class ConfrontoZonePanel(QDialog):
                 if hasattr(mgr, "window"):
                     mgr.window.raise_()
                     mgr.window.activateWindow()
-        except Exception:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
             pass
         event.accept()
 

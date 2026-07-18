@@ -4,6 +4,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QInputDialog
 from qgis.core import QgsProject, QgsVectorLayer
 from osgeo import ogr
+from qgis.core import Qgis, QgsMessageLog
 
 
 class _SelectionHandler(QObject):
@@ -66,14 +67,16 @@ class LoadPS_FromFile:
             if layer:
                 try:
                     layer.selectionChanged.disconnect(handler.on_selection_changed)
-                except:
+                except Exception as _e:
+                    QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                     pass
 
         self.layer_selection_handlers.clear()
 
         try:
             QgsProject.instance().layersWillBeRemoved.disconnect(self.on_layers_will_be_removed)
-        except:
+        except Exception as _e:
+            QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
             pass
 
     def on_layers_will_be_removed(self, layer_ids):
@@ -83,7 +86,8 @@ class LoadPS_FromFile:
                 if layer:
                     try:
                         layer.selectionChanged.disconnect(self.layer_selection_handlers[layer_id].on_selection_changed)
-                    except:
+                    except Exception as _e:
+                        QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                         pass
                 del self.layer_selection_handlers[layer_id]
 
@@ -225,7 +229,8 @@ class LoadPS_FromFile:
         if layer_id in self.layer_selection_handlers:
             try:
                 quadro_layer.selectionChanged.disconnect(self.layer_selection_handlers[layer_id].on_selection_changed)
-            except:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                 pass
 
         # Crea handler come QObject persistente

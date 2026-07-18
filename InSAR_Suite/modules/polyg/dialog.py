@@ -439,7 +439,8 @@ class InSARPolygonsDialog(QDialog):
                 self.bridge.progress_signal.disconnect()
                 self.bridge.finished_signal.disconnect()
                 self.bridge.error_signal.disconnect()
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                 pass
             self.bridge = None
         self.log_box.clear()
@@ -533,7 +534,8 @@ class InSARPolygonsDialog(QDialog):
                 self.bridge.progress_signal.disconnect()
                 self.bridge.finished_signal.disconnect()
                 self.bridge.error_signal.disconnect()
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                 pass
             self.bridge = None
         self._reset_buttons()
@@ -571,7 +573,8 @@ class InSARPolygonsDialog(QDialog):
                 self.bridge.progress_signal.disconnect()
                 self.bridge.finished_signal.disconnect()
                 self.bridge.error_signal.disconnect()
-            except Exception:
+            except Exception as _e:
+                QgsMessageLog.logMessage(f"InSAR Suite: eccezione ignorata: {_e}", "InSAR Suite", level=Qgis.MessageLevel.Info)
                 pass
             self.bridge = None
         self._reset_buttons()

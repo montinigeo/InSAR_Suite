@@ -1,11 +1,12 @@
 [general]
 name=InSAR Suite
 description=Integrated suite for loading, processing and analysis of PSI displacement data
-version=3.2.1
+version=3.2.2
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
 author=Giovanni Montini
 email=g.montini@appenninosettentrionale.it
+license=GPL-2.0-or-later
 about=InSAR Suite is an integrated QGIS plugin that brings together five tools for PSI (Persistent Scatterer Interferometry) data analysis into a single dedicated toolbar.
 
  - InSAR Load: loads PSI point layers from GeoPackage, Shapefile or GDB files using a polygon index layer, or reactivates an index already present in the project.
@@ -25,3 +26,7 @@ hasProcessingProvider=no
 experimental=no
 deprecated=no
 server=no
+changelog=3.2.2 - Bug fixes.
+  Fixed coherent-PS matching in the TS module (kinematic analysis, decomposition, non-linear analysis) when the source layer has no field literally named "CODE": now falls back consistently to the internal feature ID, as already done during the analysis phase.
+  Fixed fixed layer naming in EWUD (grid, Centroidi_EWUD, Poligoni_EWUD): saved layers now take the name of the file they were saved to, so different runs saved under different names are no longer indistinguishable in the layer list.
+  Code quality cleanup (removed try/except/pass blocks flagged by security scanning, redundant imports, explicit iface import in standalone scripts).

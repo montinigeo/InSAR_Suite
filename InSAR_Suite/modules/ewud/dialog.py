@@ -147,7 +147,7 @@ def _layer_combo(layer_type):
 
 def _output_row(label_text):
     """Riga con QLineEdit + bottone '...' per scegliere il file di output."""
-    from qgis.PyQt.QtGui import QPalette, QColor
+    from qgis.PyQt.QtGui import QPalette
     row   = QHBoxLayout()
     edit  = QLineEdit()
     edit.setPlaceholderText('Output temporaneo (lascia vuoto)')
@@ -738,11 +738,21 @@ class EgmsDialog(QDialog):
             'Poligoni_EWUD':  os.path.join(plugin_dir, 'insar_ewud_poligoni.qml'),
         }
 
-        # Raccoglie i layer validi indicizzati per nome
+        # Raccoglie i layer validi indicizzati per nome (chiave interna,
+        # usata anche per la mappa QML sopra)
         valid = {}
         for name, lyr in layers:
             if lyr and lyr.isValid():
-                lyr.setName(name)
+                # Se il layer proviene da un file permanente (non da memoria),
+                # usa il nome del file come nome visualizzato, per distinguere
+                # facilmente run diversi salvati con nomi diversi.
+                src = lyr.source() or ''
+                gpkg_path = src.split('|')[0]  # rimuove eventuale '|layername=...'
+                if gpkg_path and os.path.isfile(gpkg_path):
+                    display_name = os.path.splitext(os.path.basename(gpkg_path))[0] or name
+                else:
+                    display_name = name
+                lyr.setName(display_name)
                 valid[name] = lyr
 
         if not valid:
