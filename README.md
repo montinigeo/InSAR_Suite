@@ -18,6 +18,10 @@ La versione 3.2 aggiunge skewness e kurtosis all'analisi qualità TS, supporta i
 
 La versione 3.2.1 corregge un bug nel modulo EWUD che su alcuni sistemi causava lo scambio dei campi Va/Na/Vd/Nd, e aggiunge la compatibilità con schermi di dimensioni ridotte nel modulo InSAR Polygons.
 
+La versione 3.2.2 corregge due bug indipendenti da QGIS 4 (emersi durante i test della versione parallela per QGIS 4, ma presenti anche qui): l'abbinamento dei PS coerenti nel modulo TS falliva quando il layer sorgente non ha un campo chiamato esattamente "CODE" (ora ricade coerentemente sull'ID interno della feature, come già faceva la fase di analisi); e i layer salvati dal modulo EWUD (griglia, Centroidi_EWUD, Poligoni_EWUD) avevano un nome fisso indipendentemente dal file scelto, rendendo indistinguibili run diversi salvati con nomi diversi.
+
+La versione 3.3.0 introduce la compatibilità con **QGIS 4 / Qt6**, distribuita come ramo separato (vedi sezione Installazione). Il porting ha richiesto la correzione di numerosi riferimenti a enum Qt e QGIS non più validi in Qt6 (allineamento testo, dialoghi, messaggi, tipi di campo), l'adeguamento del meccanismo di caricamento degli script standalone del modulo TS, la correzione di un conflitto GDAL sul campo fid nei GeoPackage e di un bug di abbinamento dei PS coerenti (entrambi indipendenti da QGIS 4, ma emersi durante i test). Aggiunge inoltre il salvataggio permanente su GeoPackage al modulo **InSAR Polygons** (come già presente in VIS ed EWUD). La linea 3.2.x per QGIS 3 continua a essere mantenuta in parallelo.
+
 ### Moduli
 
 | Modulo | Descrizione |
@@ -26,7 +30,7 @@ La versione 3.2.1 corregge un bug nel modulo EWUD che su alcuni sistemi causava 
 | **InSAR EWUD** | Ricostruzione del vettore velocità nel piano Est-Ovest / Up-Down dalle velocità LOS di coppie ascending/descending. Griglia di ricampionamento con celle quadrate o esagonali. Preset satellitari inclusi (Sentinel-1 EGMS - Italia centro-settentrionale, Sentinel-1 generico, ERS/Envisat, ALOS/ALOS-2, RADARSAT-2, COSMO-SkyMed, TerraSAR-X/TanDEM-X). Output con campi Na e Nd (numero PS per cella). |
 | **InSAR VIS** | Calcolo della percentuale di movimento rilevabile (pc_mov) in funzione della geometria SAR e della morfologia del terreno (Aspect/Slope da DEM). Il DEM viene ritagliato alla risoluzione originale con snap to grid (targetAlignedPixels). Output salvabile come GeoPackage permanente. Preset satellitari inclusi (stessi di EWUD). Elaborazione tramite QgsTask (GUI non bloccante). |
 | **InSAR TS** | Analisi serie storiche: qualità del dato (con skewness e kurtosis), analisi cinematica automatica, scomposizione STL, analisi non lineare piecewise (pwlf), rilevamento anomalie temporali, confronto tra zone. Supporto formati data DYYYYMMDD e YYYYMMDD. Pulsante "Carica PS coerenti in QGIS" disponibile nei grafici. |
-| **InSAR Polygons** | Delimitazione automatica delle aree di deformazione: classificazione PS per soglia di velocità, buffer e dissolve geometrico per classe, validazione e smoothing morfologico. Output poligonale con attributi statistici (velocità media, n. PS, area km²). |
+| **InSAR Polygons** | Delimitazione automatica delle aree di deformazione: classificazione PS per soglia di velocità, buffer e dissolve geometrico per classe, validazione e smoothing morfologico. Output poligonale con attributi statistici (velocità media, n. PS, area km²). Output salvabile come GeoPackage permanente (dalla v3.3.0). |
 
 ### Preset satellitari (moduli VIS e EWUD)
 
@@ -55,7 +59,7 @@ La versione 3.2.1 corregge un bug nel modulo EWUD che su alcuni sistemi causava 
 
 ### Requisiti
 
-- QGIS 3.16 o superiore
+- **QGIS 3.16 – 3.99** (plugin v3.2.x) oppure **QGIS 4.00+** (plugin v3.3.x, Qt6)
 - Python 3 con librerie: `pandas`, `numpy`, `matplotlib`, `scipy`, `statsmodels`, `pyproj`, `mplcursors`, `pwlf`
 
 > A partire dalla v3.0 la libreria `pykrige` non è più richiesta dalla toolbar principale. La geostatistica è disponibile come script standalone nella cartella `docs/`.
@@ -69,15 +73,17 @@ La versione 3.2.1 corregge un bug nel modulo EWUD che su alcuni sistemi causava 
 Le nuove versioni vengono pubblicate direttamente nel repository e sono immediatamente disponibili senza attese di revisione.
 
 **Da ZIP:**
-1. Scarica `InSAR_Suite_v3.2.1_QGIS.zip` dalla pagina [Releases](../../releases)
+1. Scarica lo ZIP corrispondente alla tua versione di QGIS dalla pagina [Releases](../../releases): `InSAR_Suite_v3.2.1_QGIS.zip` per QGIS 3, `InSAR_Suite_v3.3.0_QGIS4.zip` per QGIS 4
 2. In QGIS: *Plugin → Gestisci e installa plugin → Installa da ZIP*
 3. Abilita il plugin dall'elenco degli installati
 
 **Installazione manuale:**
 
 Copiare la cartella `InSAR_Suite/` nella directory dei plugin di QGIS:
-- Windows: `C:\Users\<utente>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\`
-- Linux / macOS: `~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/`
+- Windows (QGIS 3): `C:\Users\<utente>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\`
+- Windows (QGIS 4): `C:\Users\<utente>\AppData\Roaming\QGIS\QGIS4\profiles\default\python\plugins\`
+- Linux / macOS (QGIS 3): `~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/`
+- Linux / macOS (QGIS 4): `~/.local/share/QGIS/QGIS4/profiles/default/python/plugins/`
 
 ### Utilizzo rapido
 
@@ -113,6 +119,10 @@ Version 3.2 adds skewness and kurtosis to the TS quality analysis, supports the 
 
 Version 3.2.1 fixes a bug in the EWUD module that on some systems caused the Va/Na/Vd/Nd fields to be swapped, and adds scrollable window support for small screens in the InSAR Polygons module.
 
+Version 3.2.2 fixes two bugs unrelated to QGIS 4 (surfaced while testing the parallel QGIS 4 version, but also present here): coherent-PS matching in the TS module failed when the source layer has no field literally named "CODE" (now falls back consistently to the internal feature ID, as already done during the analysis phase); and layers saved from the EWUD module (grid, Centroidi_EWUD, Poligoni_EWUD) had a fixed name regardless of the chosen file, making different runs saved under different names indistinguishable.
+
+Version 3.3.0 introduces compatibility with **QGIS 4 / Qt6**, distributed as a separate branch (see Installation section). The porting required fixing numerous Qt and QGIS enum references no longer valid under Qt6 (text alignment, dialogs, messages, field types), adapting the loading mechanism for the TS module's standalone scripts, and fixing a GDAL fid conflict on GeoPackage output and a coherent-PS matching bug (both unrelated to QGIS 4, but surfaced during testing). It also adds permanent GeoPackage saving to the **InSAR Polygons** module (already available in VIS and EWUD). The 3.2.x line for QGIS 3 continues to be maintained in parallel.
+
 ### Modules
 
 | Module | Description |
@@ -121,7 +131,7 @@ Version 3.2.1 fixes a bug in the EWUD module that on some systems caused the Va/
 | **InSAR EWUD** | Reconstructs the velocity vector in the East-West / Up-Down plane from ascending/descending LOS velocities. Resampling grid with square or hexagonal cells. Includes satellite presets (Sentinel-1 EGMS - central-northern Italy, Sentinel-1 generic, ERS/Envisat, ALOS/ALOS-2, RADARSAT-2, COSMO-SkyMed, TerraSAR-X/TanDEM-X). Output includes Na and Nd fields (PS count per cell). |
 | **InSAR VIS** | Calculates detectable movement percentage (pc_mov) based on SAR acquisition geometry and terrain morphology (Aspect/Slope from DEM). The DEM is clipped at its original resolution with snap to grid (targetAlignedPixels). Output can be saved as a permanent GeoPackage. Includes satellite presets (same as EWUD). Runs as a QgsTask (non-blocking GUI). |
 | **InSAR TS** | Time series analysis: data quality check (with skewness and kurtosis), automatic mean series, STL seasonal decomposition, piecewise non-linear analysis (pwlf), temporal anomaly detection, multi-zone comparison. Supports DYYYYMMDD and YYYYMMDD date formats. "Load coherent PS to QGIS" button available in charts. |
-| **InSAR Polygons** | Automatic delineation of deformation areas: PS classification by velocity threshold, buffer and geometric dissolve by velocity class, validation and morphological smoothing. Polygonal output with statistical attributes (mean velocity, PS count, area km²). |
+| **InSAR Polygons** | Automatic delineation of deformation areas: PS classification by velocity threshold, buffer and geometric dissolve by velocity class, validation and morphological smoothing. Polygonal output with statistical attributes (mean velocity, PS count, area km²). Output can be saved as a permanent GeoPackage (from v3.3.0). |
 
 ### Satellite presets (VIS and EWUD modules)
 
@@ -150,7 +160,7 @@ Version 3.2.1 fixes a bug in the EWUD module that on some systems caused the Va/
 
 ### Requirements
 
-- QGIS 3.16 or higher
+- **QGIS 3.16 – 3.99** (plugin v3.2.x) or **QGIS 4.00+** (plugin v3.3.x, Qt6)
 - Python 3 with libraries: `pandas`, `numpy`, `matplotlib`, `scipy`, `statsmodels`, `pyproj`, `mplcursors`, `pwlf`
 
 > From v3.0 onwards, the `pykrige` library is no longer required by the main toolbar. Geostatistics is available as a standalone script in the `docs/` folder.
@@ -164,15 +174,17 @@ Version 3.2.1 fixes a bug in the EWUD module that on some systems caused the Va/
 New versions are published directly to the repository and are immediately available without review delays.
 
 **From ZIP:**
-1. Download `InSAR_Suite_v3.2.1_QGIS.zip` from the [Releases](../../releases) page
+1. Download the ZIP matching your QGIS version from the [Releases](../../releases) page: `InSAR_Suite_v3.2.1_QGIS.zip` for QGIS 3, `InSAR_Suite_v3.3.0_QGIS4.zip` for QGIS 4
 2. In QGIS: *Plugins → Manage and Install Plugins → Install from ZIP*
 3. Enable the plugin from the installed list
 
 **Manual installation:**
 
 Copy the `InSAR_Suite/` folder to the QGIS plugins directory:
-- Windows: `C:\Users\<user>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\`
-- Linux / macOS: `~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/`
+- Windows (QGIS 3): `C:\Users\<user>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\`
+- Windows (QGIS 4): `C:\Users\<user>\AppData\Roaming\QGIS\QGIS4\profiles\default\python\plugins\`
+- Linux / macOS (QGIS 3): `~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/`
+- Linux / macOS (QGIS 4): `~/.local/share/QGIS/QGIS4/profiles/default/python/plugins/`
 
 ### Quick start
 

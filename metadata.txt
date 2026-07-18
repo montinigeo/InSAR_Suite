@@ -1,0 +1,32 @@
+[general]
+name=InSAR Suite
+description=Integrated suite for loading, processing and analysis of PSI displacement data
+version=3.2.2
+qgisMinimumVersion=3.16
+qgisMaximumVersion=3.99
+author=Giovanni Montini
+email=g.montini@appenninosettentrionale.it
+license=GPL-2.0-or-later
+about=InSAR Suite is an integrated QGIS plugin that brings together five tools for PSI (Persistent Scatterer Interferometry) data analysis into a single dedicated toolbar.
+
+ - InSAR Load: loads PSI point layers from GeoPackage, Shapefile or GDB files using a polygon index layer, or reactivates an index already present in the project.
+ - InSAR EWUD: decomposes LOS velocities from ascending/descending SAR data into East-West and Up-Down components, with automatic resampling grid creation (square or hexagonal cells). Outputs include Na and Nd fields (number of PS points used per cell).
+ - InSAR VIS: calculates the detectable movement percentage (pc_mov) based on SAR acquisition geometry and terrain morphology derived from a DEM. Output can be saved as a permanent GeoPackage.
+ - InSAR TS: time series analysis tools including data quality and homogeneity check (with skewness and kurtosis), automatic kinematic analysis, seasonal decomposition (STL), piecewise non-linear analysis, temporal anomaly detection, and multi-zone comparison. Supports DYYYYMMDD and YYYYMMDD date field formats.
+ - InSAR Polygons: automatic delineation of deformation areas from PS data using buffer and geometric dissolve by velocity class, with hierarchical clipping and optional morphological smoothing.
+
+homepage=https://github.com/montinigeo/InSAR_Suite
+tracker=https://github.com/montinigeo/InSAR_Suite/issues
+repository=https://github.com/montinigeo/InSAR_Suite
+tags=InSAR, PSI, persistent scatterer, SAR, deformation, displacement, time series, EGMS, Sentinel-1, remote sensing, geohazard, subsidence, landslide
+pip_dependencies=pandas,numpy,matplotlib,scipy,statsmodels,pyproj,mplcursors,pwlf
+icon=icons/icon_suite.png
+category=Analysis
+hasProcessingProvider=no
+experimental=no
+deprecated=no
+server=no
+changelog=3.2.2 - Bug fixes.
+  Fixed coherent-PS matching in the TS module (kinematic analysis, decomposition, non-linear analysis) when the source layer has no field literally named "CODE": now falls back consistently to the internal feature ID, as already done during the analysis phase.
+  Fixed fixed layer naming in EWUD (grid, Centroidi_EWUD, Poligoni_EWUD): saved layers now take the name of the file they were saved to, so different runs saved under different names are no longer indistinguishable in the layer list.
+  Code quality cleanup (removed try/except/pass blocks flagged by security scanning, redundant imports, explicit iface import in standalone scripts).
