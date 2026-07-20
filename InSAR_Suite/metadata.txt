@@ -1,7 +1,7 @@
 [general]
 name=InSAR Suite
 description=Integrated suite for loading, processing and analysis of PSI displacement data
-version=3.2.2
+version=3.2.3
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
 author=Giovanni Montini
@@ -26,7 +26,9 @@ hasProcessingProvider=no
 experimental=no
 deprecated=no
 server=no
-changelog=3.2.2 - Bug fixes.
+changelog=3.2.3 - Bug fix.
+  Corretto il salvataggio permanente della griglia EWUD: il campo "id" veniva interpretato da GDAL come chiave primaria del GeoPackage al salvataggio, causando una possibile alterazione dell'ordine/corrispondenza dei valori dopo il ricaricamento (con conseguenti campi Va/Vd/Na/Nd nulli in Centroidi_EWUD/Poligoni_EWUD). Il campo è stato rinominato in "grid_id", non ambiguo per GDAL. Calcolo sempre in memoria, salvataggio su file come passaggio separato.
+  3.2.2 - Bug fixes.
   Fixed coherent-PS matching in the TS module (kinematic analysis, decomposition, non-linear analysis) when the source layer has no field literally named "CODE": now falls back consistently to the internal feature ID, as already done during the analysis phase.
   Fixed fixed layer naming in EWUD (grid, Centroidi_EWUD, Poligoni_EWUD): saved layers now take the name of the file they were saved to, so different runs saved under different names are no longer indistinguishable in the layer list.
   Code quality cleanup (removed try/except/pass blocks flagged by security scanning, redundant imports, explicit iface import in standalone scripts).

@@ -18,7 +18,8 @@ from qgis.PyQt.QtCore import QThread, pyqtSignal
 from qgis.core import (
     QgsProcessingContext, QgsProcessingFeedback,
     QgsVectorLayer, QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform, QgsProject
+    QgsCoordinateTransform, QgsProject,
+    QgsVectorFileWriter, QgsCoordinateTransformContext
 )
 import processing
 
@@ -194,6 +195,21 @@ class GridRunner(QThread):
                 'OUTPUT': 'TEMPORARY_OUTPUT',
             }, context=ctx, feedback=feedback, is_child_algorithm=False)
             outputs['clean'] = r['OUTPUT']
+
+            # Rinomina 'id' in 'grid_id': GDAL, scrivendo su GeoPackage, tende
+            # a interpretare un campo chiamato "id" come candidato per la
+            # chiave primaria interna (fid), il che può alterare l'ordine o
+            # la corrispondenza dei valori dopo un salvataggio/ricarica.
+            # Un nome non ambiguo evita il problema, mantenendo il campo come
+            # attributo normale con i valori originali intatti.
+            r = processing.run('native:renametablefield', {
+                'INPUT':     outputs['clean'],
+                'FIELD':     'id',
+                'NEW_NAME':  'grid_id',
+                'OUTPUT':    'TEMPORARY_OUTPUT',
+            }, context=ctx, feedback=feedback, is_child_algorithm=False)
+            outputs['clean'] = r['OUTPUT']
+
             processing.run('native:createspatialindex', {'INPUT': outputs['clean']},
                            context=ctx, feedback=feedback, is_child_algorithm=False)
 
@@ -210,13 +226,11 @@ class GridRunner(QThread):
             # ── Step 6 – Filtra celle con PS descending ───────────────────────
             feedback.next_step('Filtro celle descending…')
             out_path = self.params.get('Egms_grid', 'TEMPORARY_OUTPUT')
-            if out_path == 'TEMPORARY_OUTPUT':
-                out_path = 'memory:'
             r = processing.run('native:extractbylocation', {
                 'INPUT':     outputs['asc'],
                 'INTERSECT': ps_desc_w,
                 'PREDICATE': [0],
-                'OUTPUT':    out_path,
+                'OUTPUT':    'memory:',
             }, context=ctx, feedback=feedback, is_child_algorithm=False)
             outputs['final'] = r['OUTPUT']
 
@@ -237,6 +251,29 @@ class GridRunner(QThread):
                 grid_layer = QgsVectorLayer(final, layer_display_name, 'ogr')
             else:
                 grid_layer = None
+
+            # ── Salvataggio permanente (se richiesto) ───────────────────────
+            # Fatto DOPO che grid_layer è già completo in memoria, non come
+            # OUTPUT diretto della catena di elaborazione: scrivere il
+            # GeoPackage dentro un algoritmo processing può, in presenza del
+            # campo "id", corrompere silenziosamente gli attributi in output
+            # (stesso problema già risolto per Centroidi_EWUD/Poligoni_EWUD).
+            if out_path not in ('TEMPORARY_OUTPUT', 'memory:') and grid_layer is not None and grid_layer.isValid():
+                opts = QgsVectorFileWriter.SaveVectorOptions()
+                opts.driverName = 'GPKG'
+                opts.fileEncoding = 'UTF-8'
+                opts.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+                opts.layerName = layer_display_name
+                err, msg, _, _ = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    grid_layer, out_path, QgsCoordinateTransformContext(), opts)
+                if err == QgsVectorFileWriter.NoError:
+                    saved = QgsVectorLayer(out_path, layer_display_name, 'ogr')
+                    if saved.isValid():
+                        grid_layer = saved
+                    else:
+                        self._info(feedback, "⚠ Salvataggio riuscito ma rilettura del file fallita; uso il layer in memoria.")
+                else:
+                    self._info(feedback, f"⚠ Salvataggio permanente della griglia fallito: {msg}")
 
             n = grid_layer.featureCount() if grid_layer and grid_layer.isValid() else 0
             self._info(feedback, f'Griglia completata: {n} celle valide.')
