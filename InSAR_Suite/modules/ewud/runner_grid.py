@@ -18,7 +18,8 @@ from qgis.PyQt.QtCore import QThread, pyqtSignal
 from qgis.core import (
     QgsProcessingContext, QgsProcessingFeedback,
     QgsVectorLayer, QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform, QgsProject
+    QgsCoordinateTransform, QgsProject,
+    QgsVectorFileWriter, QgsCoordinateTransformContext
 )
 import processing
 
@@ -194,6 +195,35 @@ class GridRunner(QThread):
                 'OUTPUT': 'TEMPORARY_OUTPUT',
             }, context=ctx, feedback=feedback, is_child_algorithm=False)
             outputs['clean'] = r['OUTPUT']
+
+            # Rinomina 'id' in 'grid_id': GDAL, scrivendo su GeoPackage, tende
+            # a interpretare un campo chiamato "id" come candidato per la
+            # chiave primaria interna (fid), il che può alterare l'ordine o
+            # la corrispondenza dei valori dopo un salvataggio/ricarica.
+            # Un nome non ambiguo evita il problema, mantenendo il campo come
+            # attributo normale con i valori originali intatti.
+            r = processing.run('native:renametablefield', {
+                'INPUT':     outputs['clean'],
+                'FIELD':     'id',
+                'NEW_NAME':  'grid_id',
+                'OUTPUT':    'TEMPORARY_OUTPUT',
+            }, context=ctx, feedback=feedback, is_child_algorithm=False)
+            outputs['clean'] = r['OUTPUT']
+
+            import logging as _logging_r, os as _os_r, tempfile as _tempfile_r
+            _diag_r = _logging_r.getLogger("InSAR_Suite.qt_compat")
+            if not _diag_r.handlers:
+                _base_r = _os_r.path.join(_tempfile_r.gettempdir(), "insar_suite_logs")
+                _os_r.makedirs(_base_r, exist_ok=True)
+                _h_r = _logging_r.FileHandler(_os_r.path.join(_base_r, "insar_suite_qt_compat.log"), encoding="utf-8")
+                _h_r.setFormatter(_logging_r.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+                _diag_r.setLevel(_logging_r.DEBUG)
+                _diag_r.addHandler(_h_r)
+            _check_layer = outputs['clean'] if isinstance(outputs['clean'], QgsVectorLayer) else QgsVectorLayer(outputs['clean'], 'check', 'ogr')
+            _diag_r.debug("[ewud-grid] dopo renametablefield: tipo restituito=%r | campi=%r",
+                          type(outputs['clean']).__name__,
+                          _check_layer.fields().names() if _check_layer.isValid() else 'LAYER NON VALIDO')
+
             processing.run('native:createspatialindex', {'INPUT': outputs['clean']},
                            context=ctx, feedback=feedback, is_child_algorithm=False)
 
@@ -210,13 +240,11 @@ class GridRunner(QThread):
             # ── Step 6 – Filtra celle con PS descending ───────────────────────
             feedback.next_step('Filtro celle descending…')
             out_path = self.params.get('Egms_grid', 'TEMPORARY_OUTPUT')
-            if out_path == 'TEMPORARY_OUTPUT':
-                out_path = 'memory:'
             r = processing.run('native:extractbylocation', {
                 'INPUT':     outputs['asc'],
                 'INTERSECT': ps_desc_w,
                 'PREDICATE': [0],
-                'OUTPUT':    out_path,
+                'OUTPUT':    'memory:',
             }, context=ctx, feedback=feedback, is_child_algorithm=False)
             outputs['final'] = r['OUTPUT']
 
@@ -237,6 +265,43 @@ class GridRunner(QThread):
                 grid_layer = QgsVectorLayer(final, layer_display_name, 'ogr')
             else:
                 grid_layer = None
+
+            # ── Salvataggio permanente (se richiesto) ───────────────────────
+            # Fatto DOPO che grid_layer è già completo in memoria, non come
+            # OUTPUT diretto della catena di elaborazione: scrivere il
+            # GeoPackage dentro un algoritmo processing può, in presenza del
+            # campo "id", corrompere silenziosamente gli attributi in output
+            # (stesso problema già risolto per Centroidi_EWUD/Poligoni_EWUD).
+            if out_path not in ('TEMPORARY_OUTPUT', 'memory:') and grid_layer is not None and grid_layer.isValid():
+                opts = QgsVectorFileWriter.SaveVectorOptions()
+                opts.driverName = 'GPKG'
+                opts.fileEncoding = 'UTF-8'
+                opts.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
+                opts.layerName = layer_display_name
+                err, msg, _, _ = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    grid_layer, out_path, QgsCoordinateTransformContext(), opts)
+                if err == QgsVectorFileWriter.WriterError.NoError:
+                    saved = QgsVectorLayer(out_path, layer_display_name, 'ogr')
+                    if saved.isValid():
+                        grid_layer = saved
+                        import logging as _logging_g, os as _os_g, tempfile as _tempfile_g
+                        _diag_g = _logging_g.getLogger("InSAR_Suite.qt_compat")
+                        if not _diag_g.handlers:
+                            _base_g = _os_g.path.join(_tempfile_g.gettempdir(), "insar_suite_logs")
+                            _os_g.makedirs(_base_g, exist_ok=True)
+                            _h_g = _logging_g.FileHandler(_os_g.path.join(_base_g, "insar_suite_qt_compat.log"), encoding="utf-8")
+                            _h_g.setFormatter(_logging_g.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+                            _diag_g.setLevel(_logging_g.DEBUG)
+                            _diag_g.addHandler(_h_g)
+                        _diag_g.debug(
+                            "[ewud-grid] griglia salvata e ricaricata: campi=%r | esempio grid_id prime 3 feature=%r",
+                            saved.fields().names(),
+                            [f['grid_id'] for f in list(saved.getFeatures())[:3]] if saved.fields().indexFromName('grid_id') >= 0 else 'CAMPO grid_id ASSENTE',
+                        )
+                    else:
+                        self._info(feedback, "⚠ Salvataggio riuscito ma rilettura del file fallita; uso il layer in memoria.")
+                else:
+                    self._info(feedback, f"⚠ Salvataggio permanente della griglia fallito: {msg}")
 
             n = grid_layer.featureCount() if grid_layer and grid_layer.isValid() else 0
             self._info(feedback, f'Griglia completata: {n} celle valide.')

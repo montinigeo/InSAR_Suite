@@ -1,7 +1,7 @@
 [general]
 name=InSAR Suite
 description=Integrated suite for loading, processing and analysis of PSI displacement data
-version=3.3.0
+version=3.3.1
 qgisMinimumVersion=4.00
 qgisMaximumVersion=4.99
 supportsQt6=True
@@ -27,6 +27,8 @@ hasProcessingProvider=no
 experimental=no
 deprecated=no
 server=no
-changelog=3.3.0 - Porting e compatibilità con QGIS 4 / Qt6.
+changelog=3.3.1 - Bug fix.
+  Corretto il salvataggio permanente della griglia EWUD: il campo "id" veniva interpretato da GDAL come chiave primaria del GeoPackage al salvataggio, causando una possibile alterazione dell'ordine/corrispondenza dei valori dopo il ricaricamento (con conseguenti campi Va/Vd/Na/Nd nulli in Centroidi_EWUD/Poligoni_EWUD). Il campo è stato rinominato in "grid_id", non ambiguo per GDAL. Calcolo sempre in memoria, salvataggio su file come passaggio separato.
+  3.3.0 - Porting e compatibilità con QGIS 4 / Qt6.
   Corretti import PyQt5 diretti, enum Qt/QGIS non qualificati (Qt.AlignmentFlag, QDialog.DialogCode, QMessageBox.StandardButton, Qgis.MessageLevel, ecc.), gestione QVariant/QMetaType per i campi, caricamento script standalone via runpy, conflitto GDAL id/fid su GeoPackage, e un bug di matching PS coerenti indipendente da QGIS 4.
   Novità: InSAR Polygons supporta ora il salvataggio diretto su GeoPackage (come già in VIS/EWUD).
