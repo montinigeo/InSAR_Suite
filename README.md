@@ -20,7 +20,11 @@ La versione 3.2.1 corregge un bug nel modulo EWUD che su alcuni sistemi causava 
 
 La versione 3.2.2 corregge due bug indipendenti da QGIS 4 (emersi durante i test della versione parallela per QGIS 4, ma presenti anche qui): l'abbinamento dei PS coerenti nel modulo TS falliva quando il layer sorgente non ha un campo chiamato esattamente "CODE" (ora ricade coerentemente sull'ID interno della feature, come già faceva la fase di analisi); e i layer salvati dal modulo EWUD (griglia, Centroidi_EWUD, Poligoni_EWUD) avevano un nome fisso indipendentemente dal file scelto, rendendo indistinguibili run diversi salvati con nomi diversi.
 
+La versione 3.2.3 corregge il salvataggio permanente della griglia EWUD: GDAL interpretava il campo "id" come candidato per la chiave primaria del GeoPackage, il che poteva alterare la corrispondenza tra le celle della griglia e i valori calcolati dopo il ricaricamento (con conseguenti campi Va/Vd/Na/Nd nulli in Centroidi_EWUD/Poligoni_EWUD). Il campo è stato rinominato in "grid_id" per evitare l'ambiguità; il calcolo avviene ora sempre in memoria, con il salvataggio su file come passaggio separato.
+
 La versione 3.3.0 introduce la compatibilità con **QGIS 4 / Qt6**, distribuita come ramo separato (vedi sezione Installazione). Il porting ha richiesto la correzione di numerosi riferimenti a enum Qt e QGIS non più validi in Qt6 (allineamento testo, dialoghi, messaggi, tipi di campo), l'adeguamento del meccanismo di caricamento degli script standalone del modulo TS, la correzione di un conflitto GDAL sul campo fid nei GeoPackage e di un bug di abbinamento dei PS coerenti (entrambi indipendenti da QGIS 4, ma emersi durante i test). Aggiunge inoltre il salvataggio permanente su GeoPackage al modulo **InSAR Polygons** (come già presente in VIS ed EWUD). La linea 3.2.x per QGIS 3 continua a essere mantenuta in parallelo.
+
+La versione 3.3.1 corregge lo stesso bug di salvataggio della griglia EWUD risolto nella 3.2.3 per QGIS 3 (vedi sopra), indipendente da QGIS 4 ma emerso durante i test su questo ramo.
 
 ### Moduli
 
@@ -73,7 +77,7 @@ La versione 3.3.0 introduce la compatibilità con **QGIS 4 / Qt6**, distribuita 
 Le nuove versioni vengono pubblicate direttamente nel repository e sono immediatamente disponibili senza attese di revisione.
 
 **Da ZIP:**
-1. Scarica lo ZIP corrispondente alla tua versione di QGIS dalla pagina [Releases](../../releases): `InSAR_Suite_v3.2.1_QGIS.zip` per QGIS 3, `InSAR_Suite_v3.3.0_QGIS4.zip` per QGIS 4
+1. Scarica lo ZIP corrispondente alla tua versione di QGIS dalla pagina [Releases](../../releases): `InSAR_Suite_v3.2.3_QGIS3.zip` per QGIS 3, `InSAR_Suite_v3.3.1_QGIS4.zip` per QGIS 4
 2. In QGIS: *Plugin → Gestisci e installa plugin → Installa da ZIP*
 3. Abilita il plugin dall'elenco degli installati
 
@@ -121,7 +125,11 @@ Version 3.2.1 fixes a bug in the EWUD module that on some systems caused the Va/
 
 Version 3.2.2 fixes two bugs unrelated to QGIS 4 (surfaced while testing the parallel QGIS 4 version, but also present here): coherent-PS matching in the TS module failed when the source layer has no field literally named "CODE" (now falls back consistently to the internal feature ID, as already done during the analysis phase); and layers saved from the EWUD module (grid, Centroidi_EWUD, Poligoni_EWUD) had a fixed name regardless of the chosen file, making different runs saved under different names indistinguishable.
 
+Version 3.2.3 fixes permanent saving of the EWUD grid: GDAL was interpreting the "id" field as a candidate for the GeoPackage primary key, which could alter the correspondence between grid cells and computed values after reload (resulting in null Va/Vd/Na/Nd fields in Centroidi_EWUD/Poligoni_EWUD). The field was renamed to "grid_id" to avoid the ambiguity; computation now always happens in memory, with file saving as a separate step.
+
 Version 3.3.0 introduces compatibility with **QGIS 4 / Qt6**, distributed as a separate branch (see Installation section). The porting required fixing numerous Qt and QGIS enum references no longer valid under Qt6 (text alignment, dialogs, messages, field types), adapting the loading mechanism for the TS module's standalone scripts, and fixing a GDAL fid conflict on GeoPackage output and a coherent-PS matching bug (both unrelated to QGIS 4, but surfaced during testing). It also adds permanent GeoPackage saving to the **InSAR Polygons** module (already available in VIS and EWUD). The 3.2.x line for QGIS 3 continues to be maintained in parallel.
+
+Version 3.3.1 fixes the same EWUD grid saving bug fixed in 3.2.3 for QGIS 3 (see above), unrelated to QGIS 4 but surfaced during testing on this branch.
 
 ### Modules
 
@@ -174,7 +182,7 @@ Version 3.3.0 introduces compatibility with **QGIS 4 / Qt6**, distributed as a s
 New versions are published directly to the repository and are immediately available without review delays.
 
 **From ZIP:**
-1. Download the ZIP matching your QGIS version from the [Releases](../../releases) page: `InSAR_Suite_v3.2.1_QGIS.zip` for QGIS 3, `InSAR_Suite_v3.3.0_QGIS4.zip` for QGIS 4
+1. Download the ZIP matching your QGIS version from the [Releases](../../releases) page: `InSAR_Suite_v3.2.3_QGIS3.zip` for QGIS 3, `InSAR_Suite_v3.3.1_QGIS4.zip` for QGIS 4
 2. In QGIS: *Plugins → Manage and Install Plugins → Install from ZIP*
 3. Enable the plugin from the installed list
 
