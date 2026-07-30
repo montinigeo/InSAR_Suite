@@ -74,7 +74,7 @@ La versione 3.3.1 corregge lo stesso bug di salvataggio della griglia EWUD risol
 1. In QGIS: *Plugin → Gestisci e installa plugin → Tutti*
 2. Cerca **InSAR Suite** e clicca su *Installa plugin*
 
-Le nuove versioni vengono pubblicate direttamente nel repository e sono immediatamente disponibili senza attese di revisione.
+Le nuove versioni vengono pubblicate nel repository ufficiale dopo revisione da parte di un moderatore (generalmente entro un giorno lavorativo, esclusi i weekend; a volte possono volerci alcuni giorni in più).
 
 **Da ZIP:**
 1. Scarica lo ZIP corrispondente alla tua versione di QGIS dalla pagina [Releases](../../releases): `InSAR_Suite_v3.2.3_QGIS3.zip` per QGIS 3, `InSAR_Suite_v3.3.1_QGIS4.zip` per QGIS 4
@@ -179,7 +179,7 @@ Version 3.3.1 fixes the same EWUD grid saving bug fixed in 3.2.3 for QGIS 3 (see
 1. In QGIS: *Plugins → Manage and Install Plugins → All*
 2. Search for **InSAR Suite** and click *Install Plugin*
 
-New versions are published directly to the repository and are immediately available without review delays.
+New versions are published to the official repository after review by a moderator (generally within one business day, excluding weekends; occasionally it may take a few days longer).
 
 **From ZIP:**
 1. Download the ZIP matching your QGIS version from the [Releases](../../releases) page: `InSAR_Suite_v3.2.3_QGIS3.zip` for QGIS 3, `InSAR_Suite_v3.3.1_QGIS4.zip` for QGIS 4
