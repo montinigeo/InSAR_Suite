@@ -28,7 +28,7 @@ experimental=no
 deprecated=no
 server=no
 changelog=3.3.1 - Bug fix.
-  Corretto il salvataggio permanente della griglia EWUD: il campo "id" veniva interpretato da GDAL come chiave primaria del GeoPackage al salvataggio, causando una possibile alterazione dell'ordine/corrispondenza dei valori dopo il ricaricamento (con conseguenti campi Va/Vd/Na/Nd nulli in Centroidi_EWUD/Poligoni_EWUD). Il campo è stato rinominato in "grid_id", non ambiguo per GDAL. Calcolo sempre in memoria, salvataggio su file come passaggio separato.
-  3.3.0 - Porting e compatibilità con QGIS 4 / Qt6.
-  Corretti import PyQt5 diretti, enum Qt/QGIS non qualificati (Qt.AlignmentFlag, QDialog.DialogCode, QMessageBox.StandardButton, Qgis.MessageLevel, ecc.), gestione QVariant/QMetaType per i campi, caricamento script standalone via runpy, conflitto GDAL id/fid su GeoPackage, e un bug di matching PS coerenti indipendente da QGIS 4.
-  Novità: InSAR Polygons supporta ora il salvataggio diretto su GeoPackage (come già in VIS/EWUD).
+  Fixed permanent saving of the EWUD grid: the "id" field was being interpreted by GDAL as a candidate for the GeoPackage primary key, which could alter the order/correspondence of values after reloading (resulting in null Va/Vd/Na/Nd fields in Centroidi_EWUD/Poligoni_EWUD). The field was renamed to "grid_id", unambiguous for GDAL. Computation now always happens in memory, with file saving as a separate step.
+  3.3.0 - Porting and compatibility with QGIS 4 / Qt6.
+  Fixed direct PyQt5 imports, unqualified Qt/QGIS enums (Qt.AlignmentFlag, QDialog.DialogCode, QMessageBox.StandardButton, Qgis.MessageLevel, etc.), QVariant/QMetaType handling for field types, standalone script loading via runpy, a GDAL id/fid conflict on GeoPackage output, and a coherent-PS matching bug unrelated to QGIS 4.
+  New: InSAR Polygons now supports direct saving to GeoPackage (as already available in VIS/EWUD).
