@@ -1,19 +1,20 @@
 [general]
 name=InSAR Suite
 description=Integrated suite for loading, processing and analysis of PSI displacement data
-version=3.2.3
+version=3.2.5
 qgisMinimumVersion=3.16
 qgisMaximumVersion=3.99
 author=Giovanni Montini
 email=g.montini@appenninosettentrionale.it
 license=GPL-2.0-or-later
-about=InSAR Suite is an integrated QGIS plugin that brings together five tools for PSI (Persistent Scatterer Interferometry) data analysis into a single dedicated toolbar.
+about=InSAR Suite is an integrated QGIS plugin that brings together six tools for PSI (Persistent Scatterer Interferometry) data analysis into a single dedicated toolbar.
 
  - InSAR Load: loads PSI point layers from GeoPackage, Shapefile or GDB files using a polygon index layer, or reactivates an index already present in the project.
  - InSAR EWUD: decomposes LOS velocities from ascending/descending SAR data into East-West and Up-Down components, with automatic resampling grid creation (square or hexagonal cells). Outputs include Na and Nd fields (number of PS points used per cell).
  - InSAR VIS: calculates the detectable movement percentage (pc_mov) based on SAR acquisition geometry and terrain morphology derived from a DEM. Output can be saved as a permanent GeoPackage.
  - InSAR TS: time series analysis tools including data quality and homogeneity check (with skewness and kurtosis), automatic kinematic analysis, seasonal decomposition (STL), piecewise non-linear analysis, temporal anomaly detection, and multi-zone comparison. Supports DYYYYMMDD and YYYYMMDD date field formats.
  - InSAR Polygons: automatic delineation of deformation areas from PS data using buffer and geometric dissolve by velocity class, with hierarchical clipping and optional morphological smoothing.
+ - InSAR Scheda: generates a summary sheet (PSInSAR analysis card) for a study area (hand-drawn or loaded from file), with PS count, density, areal coverage, kinematic coherence, mean visibility and velocity for both ascending and descending datasets, plus the mean EWUD vector. Exportable as PNG or CSV.
 
 homepage=https://github.com/montinigeo/InSAR_Suite
 tracker=https://github.com/montinigeo/InSAR_Suite/issues
@@ -26,8 +27,10 @@ hasProcessingProvider=no
 experimental=no
 deprecated=no
 server=no
-changelog=3.2.3 - Bug fix.
-  Corretto il salvataggio permanente della griglia EWUD: il campo "id" veniva interpretato da GDAL come chiave primaria del GeoPackage al salvataggio, causando una possibile alterazione dell'ordine/corrispondenza dei valori dopo il ricaricamento (con conseguenti campi Va/Vd/Na/Nd nulli in Centroidi_EWUD/Poligoni_EWUD). Il campo è stato rinominato in "grid_id", non ambiguo per GDAL. Calcolo sempre in memoria, salvataggio su file come passaggio separato.
+changelog=3.2.5 - New feature.
+  Added the InSAR Scheda module: generates a PSInSAR summary sheet for a study area (hand-drawn on the map, loaded from a polygon file, or picked from a layer already in the project), with PS count, density (PS/kmq), areal coverage (buffer method, configurable radius, automatically computed in a metric/projected CRS even if source data is in geographic coordinates; labeled "copertura areale" — coverage, not distribution), kinematic coherence (configurable threshold), mean visibility ± standard deviation (from a VIS layer, filtered to the study area) and mean velocity ± standard deviation (total and coherent-only) for both ascending and descending datasets, plus the mean EWUD vector (angle ± circular standard deviation, velocity ± standard deviation, E and U components ± standard deviation, all filtered to the study area even if the source EWUD/VIS layers cover a wider extent). The EWUD angle now uses circular statistics (vector mean) instead of an arithmetic mean, correcting a bias near the 0°/360° boundary; the resultant length R (directional coherence indicator) is shown as a tooltip. Results can be exported as PNG or CSV. No new dependencies required.
+  3.2.3 - Bug fix.
+  Fixed permanent saving of the EWUD grid: the "id" field was being interpreted by GDAL as a candidate for the GeoPackage primary key, which could alter the order/correspondence of values after reloading (resulting in null Va/Vd/Na/Nd fields in Centroidi_EWUD/Poligoni_EWUD). The field was renamed to "grid_id", unambiguous for GDAL. Computation now always happens in memory, with file saving as a separate step.
   3.2.2 - Bug fixes.
   Fixed coherent-PS matching in the TS module (kinematic analysis, decomposition, non-linear analysis) when the source layer has no field literally named "CODE": now falls back consistently to the internal feature ID, as already done during the analysis phase.
   Fixed fixed layer naming in EWUD (grid, Centroidi_EWUD, Poligoni_EWUD): saved layers now take the name of the file they were saved to, so different runs saved under different names are no longer indistinguishable in the layer list.
