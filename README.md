@@ -22,9 +22,13 @@ La versione 3.2.2 corregge due bug indipendenti da QGIS 4 (emersi durante i test
 
 La versione 3.2.3 corregge il salvataggio permanente della griglia EWUD: GDAL interpretava il campo "id" come candidato per la chiave primaria del GeoPackage, il che poteva alterare la corrispondenza tra le celle della griglia e i valori calcolati dopo il ricaricamento (con conseguenti campi Va/Vd/Na/Nd nulli in Centroidi_EWUD/Poligoni_EWUD). Il campo è stato rinominato in "grid_id" per evitare l'ambiguità; il calcolo avviene ora sempre in memoria, con il salvataggio su file come passaggio separato.
 
+La versione 3.2.5 introduce il nuovo modulo **InSAR Scheda**: genera automaticamente una scheda riepilogativa dell'analisi PSInSAR su un'area di studio (disegnata a mano, caricata da file o selezionata da un layer già nel progetto), con numero di PS, densità (PS/kmq), copertura areale, coerenza cinematica, visibilità e velocità media ± deviazione standard per i dataset ascendente e discendente, oltre al vettore EWUD medio (con statistica circolare per l'angolo). I layer VIS ed EWUD selezionati non necessitano di essere ritagliati sull'area di studio. Esportabile come PNG o CSV.
+
 La versione 3.3.0 introduce la compatibilità con **QGIS 4 / Qt6**, distribuita come ramo separato (vedi sezione Installazione). Il porting ha richiesto la correzione di numerosi riferimenti a enum Qt e QGIS non più validi in Qt6 (allineamento testo, dialoghi, messaggi, tipi di campo), l'adeguamento del meccanismo di caricamento degli script standalone del modulo TS, la correzione di un conflitto GDAL sul campo fid nei GeoPackage e di un bug di abbinamento dei PS coerenti (entrambi indipendenti da QGIS 4, ma emersi durante i test). Aggiunge inoltre il salvataggio permanente su GeoPackage al modulo **InSAR Polygons** (come già presente in VIS ed EWUD). La linea 3.2.x per QGIS 3 continua a essere mantenuta in parallelo.
 
 La versione 3.3.1 corregge lo stesso bug di salvataggio della griglia EWUD risolto nella 3.2.3 per QGIS 3 (vedi sopra), indipendente da QGIS 4 ma emerso durante i test su questo ramo.
+
+La versione 3.3.2 porta su questo ramo lo stesso modulo **InSAR Scheda** introdotto nella 3.2.5 per QGIS 3 (vedi sopra), con funzionalità identiche.
 
 ### Moduli
 
@@ -35,6 +39,7 @@ La versione 3.3.1 corregge lo stesso bug di salvataggio della griglia EWUD risol
 | **InSAR VIS** | Calcolo della percentuale di movimento rilevabile (pc_mov) in funzione della geometria SAR e della morfologia del terreno (Aspect/Slope da DEM). Il DEM viene ritagliato alla risoluzione originale con snap to grid (targetAlignedPixels). Output salvabile come GeoPackage permanente. Preset satellitari inclusi (stessi di EWUD). Elaborazione tramite QgsTask (GUI non bloccante). |
 | **InSAR TS** | Analisi serie storiche: qualità del dato (con skewness e kurtosis), analisi cinematica automatica, scomposizione STL, analisi non lineare piecewise (pwlf), rilevamento anomalie temporali, confronto tra zone. Supporto formati data DYYYYMMDD e YYYYMMDD. Pulsante "Carica PS coerenti in QGIS" disponibile nei grafici. |
 | **InSAR Polygons** | Delimitazione automatica delle aree di deformazione: classificazione PS per soglia di velocità, buffer e dissolve geometrico per classe, validazione e smoothing morfologico. Output poligonale con attributi statistici (velocità media, n. PS, area km²). Output salvabile come GeoPackage permanente (dalla v3.3.0). |
+| **InSAR Scheda** | Genera automaticamente una scheda riepilogativa dell'analisi PSInSAR su un'area di studio (disegnata, caricata da file o selezionata da un layer del progetto): numero di PS, densità, copertura areale, coerenza cinematica, visibilità e velocità (con deviazione standard) per i dataset ascendente e discendente, e vettore EWUD medio. Esportabile in PNG o CSV. |
 
 ### Preset satellitari (moduli VIS e EWUD)
 
@@ -77,7 +82,7 @@ La versione 3.3.1 corregge lo stesso bug di salvataggio della griglia EWUD risol
 Le nuove versioni vengono pubblicate nel repository ufficiale dopo revisione da parte di un moderatore (generalmente entro un giorno lavorativo, esclusi i weekend; a volte possono volerci alcuni giorni in più).
 
 **Da ZIP:**
-1. Scarica lo ZIP corrispondente alla tua versione di QGIS dalla pagina [Releases](../../releases): `InSAR_Suite_v3.2.3_QGIS3.zip` per QGIS 3, `InSAR_Suite_v3.3.1_QGIS4.zip` per QGIS 4
+1. Scarica lo ZIP corrispondente alla tua versione di QGIS dalla pagina [Releases](../../releases): `InSAR_Suite_v3.2.5_QGIS3.zip` per QGIS 3, `InSAR_Suite_v3.3.2_QGIS4.zip` per QGIS 4
 2. In QGIS: *Plugin → Gestisci e installa plugin → Installa da ZIP*
 3. Abilita il plugin dall'elenco degli installati
 
@@ -127,9 +132,13 @@ Version 3.2.2 fixes two bugs unrelated to QGIS 4 (surfaced while testing the par
 
 Version 3.2.3 fixes permanent saving of the EWUD grid: GDAL was interpreting the "id" field as a candidate for the GeoPackage primary key, which could alter the correspondence between grid cells and computed values after reload (resulting in null Va/Vd/Na/Nd fields in Centroidi_EWUD/Poligoni_EWUD). The field was renamed to "grid_id" to avoid the ambiguity; computation now always happens in memory, with file saving as a separate step.
 
+Version 3.2.5 introduces the new **InSAR Scheda** module: automatically generates a PSInSAR summary sheet for a study area (hand-drawn, loaded from a file, or picked from a layer already in the project), with PS count, density (PS/kmq), areal coverage, kinematic coherence, mean visibility and velocity ± standard deviation for both ascending and descending datasets, plus the mean EWUD vector (using circular statistics for the angle). The selected VIS and EWUD layers do not need to be clipped to the study area. Exportable as PNG or CSV.
+
 Version 3.3.0 introduces compatibility with **QGIS 4 / Qt6**, distributed as a separate branch (see Installation section). The porting required fixing numerous Qt and QGIS enum references no longer valid under Qt6 (text alignment, dialogs, messages, field types), adapting the loading mechanism for the TS module's standalone scripts, and fixing a GDAL fid conflict on GeoPackage output and a coherent-PS matching bug (both unrelated to QGIS 4, but surfaced during testing). It also adds permanent GeoPackage saving to the **InSAR Polygons** module (already available in VIS and EWUD). The 3.2.x line for QGIS 3 continues to be maintained in parallel.
 
 Version 3.3.1 fixes the same EWUD grid saving bug fixed in 3.2.3 for QGIS 3 (see above), unrelated to QGIS 4 but surfaced during testing on this branch.
+
+Version 3.3.2 brings the same **InSAR Scheda** module introduced in 3.2.5 for QGIS 3 (see above) to this branch, with identical functionality.
 
 ### Modules
 
@@ -140,6 +149,7 @@ Version 3.3.1 fixes the same EWUD grid saving bug fixed in 3.2.3 for QGIS 3 (see
 | **InSAR VIS** | Calculates detectable movement percentage (pc_mov) based on SAR acquisition geometry and terrain morphology (Aspect/Slope from DEM). The DEM is clipped at its original resolution with snap to grid (targetAlignedPixels). Output can be saved as a permanent GeoPackage. Includes satellite presets (same as EWUD). Runs as a QgsTask (non-blocking GUI). |
 | **InSAR TS** | Time series analysis: data quality check (with skewness and kurtosis), automatic mean series, STL seasonal decomposition, piecewise non-linear analysis (pwlf), temporal anomaly detection, multi-zone comparison. Supports DYYYYMMDD and YYYYMMDD date formats. "Load coherent PS to QGIS" button available in charts. |
 | **InSAR Polygons** | Automatic delineation of deformation areas: PS classification by velocity threshold, buffer and geometric dissolve by velocity class, validation and morphological smoothing. Polygonal output with statistical attributes (mean velocity, PS count, area km²). Output can be saved as a permanent GeoPackage (from v3.3.0). |
+| **InSAR Scheda** | Automatically generates a PSInSAR summary sheet for a study area (hand-drawn, loaded from a file, or picked from a project layer): PS count, density, areal coverage, kinematic coherence, visibility and velocity (with standard deviation) for both ascending and descending datasets, plus the mean EWUD vector. Exportable as PNG or CSV. |
 
 ### Satellite presets (VIS and EWUD modules)
 
@@ -182,7 +192,7 @@ Version 3.3.1 fixes the same EWUD grid saving bug fixed in 3.2.3 for QGIS 3 (see
 New versions are published to the official repository after review by a moderator (generally within one business day, excluding weekends; occasionally it may take a few days longer).
 
 **From ZIP:**
-1. Download the ZIP matching your QGIS version from the [Releases](../../releases) page: `InSAR_Suite_v3.2.3_QGIS3.zip` for QGIS 3, `InSAR_Suite_v3.3.1_QGIS4.zip` for QGIS 4
+1. Download the ZIP matching your QGIS version from the [Releases](../../releases) page: `InSAR_Suite_v3.2.5_QGIS3.zip` for QGIS 3, `InSAR_Suite_v3.3.2_QGIS4.zip` for QGIS 4
 2. In QGIS: *Plugins → Manage and Install Plugins → Install from ZIP*
 3. Enable the plugin from the installed list
 
