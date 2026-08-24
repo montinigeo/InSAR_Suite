@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QFileDialog, QMessageBox, QInputDialog
 import mplcursors
 import pwlf
 from scipy.stats import linregress
+from statsmodels.tsa.seasonal import seasonal_decompose
 import re  # Import per regex
 
 # Registro globale per prevenire garbage collection dei task attivi
@@ -88,8 +89,10 @@ def main():
         "Numero massimo di segmenti da testare (2-5).\n"
         "Il BIC scegliera automaticamente il numero ottimale\n"
         "tra 2 e il valore scelto.\n\n"
-        "Suggerimento: scegli 3 se prevedi al massimo un breakpoint.",
-        5, 2, 5, 1
+        "Suggerimento: il default (2) individua un solo eventuale\n"
+        "breakpoint; aumenta il valore solo se prevedi più cambi\n"
+        "di regime nella stessa serie.",
+        2, 2, 5, 1
     )
     if not ok2:
         return
@@ -179,9 +182,45 @@ class AnalisiCinematicaTask(QgsTask):
 
             # --- FIT PIECEWISE LINEARE AUTOMATICO ---
             x = mdates.date2num(df_media["data"].values)
-            y = df_media["deformazione_media"].values
 
-            pwlf_model = pwlf.PiecewiseLinFit(x, y)
+            # Rimuove la componente stagionale prima del fit: senza questo
+            # passaggio, il BIC tende a "spendere" segmenti aggiuntivi per
+            # inseguire l'oscillazione stagionale (termica/idrologica, tipica
+            # dei dati PSI) invece di individuare vere rotture nel tasso di
+            # deformazione, che è l'obiettivo di questa analisi. Il periodo
+            # (n. campioni per ciclo annuale) è calcolato dalla cadenza
+            # effettiva di acquisizione, non assunto fisso, perché i dati
+            # PSI hanno tipicamente frequenza sub-mensile (es. 6-12 giorni
+            # per Sentinel-1, quindi 30-60 acquisizioni/anno).
+            y_originale = df_media["deformazione_media"].values
+            y = y_originale
+            try:
+                giorni = df_media["data"].diff().dt.days.dropna()
+                intervallo_medio = float(giorni.median()) if len(giorni) > 0 else 30.0
+                period = max(2, round(365.25 / max(intervallo_medio, 1.0)))
+                if len(df_media) >= 2 * period:
+                    decomp = seasonal_decompose(
+                        df_media["deformazione_media"], period=period,
+                        model='additive', extrapolate_trend='freq')
+                    y = (df_media["deformazione_media"] - decomp.seasonal).values
+                    QgsMessageLog.logMessage(
+                        f"InSAR TS – Piecewise: componente stagionale rimossa prima del "
+                        f"fit (periodo stimato: {period} campioni/anno, intervallo medio "
+                        f"acquisizioni: {intervallo_medio:.1f} giorni).",
+                        "InSAR TS", Qgis.Info)
+                else:
+                    QgsMessageLog.logMessage(
+                        "InSAR TS – Piecewise: serie troppo corta per la rimozione "
+                        "della stagionalità, uso la serie originale.",
+                        "InSAR TS", Qgis.Info)
+            except Exception as _e:
+                QgsMessageLog.logMessage(
+                    f"InSAR TS – Piecewise: rimozione stagionalità non riuscita "
+                    f"({_e}), uso la serie originale.",
+                    "InSAR TS", Qgis.Warning)
+                y = y_originale
+
+            pwlf_model = pwlf.PiecewiseLinFit(x, y, seed=42)
             # BIC su range 2..n_seg_utente — trova il numero ottimale di segmenti
             max_segments = max(2, self.n_seg_utente)
             QgsMessageLog.logMessage(
@@ -193,7 +232,7 @@ class AnalisiCinematicaTask(QgsTask):
             for i in range(2, max_segments + 1):
                 try:
                     pwlf_model.fit(i)
-                    rss = pwlf_model.rss
+                    rss = max(pwlf_model.ssr, 1e-9)
                     n_points = len(x)
                     k = 2 * i
                     bic = n_points * np.log(rss / n_points) + k * np.log(n_points)
@@ -350,6 +389,11 @@ class AnalisiCinematicaTask(QgsTask):
                      f'{r2_tot:.3f}'])
 
         # Righe segmenti
+        # NB: pwlf_model.y_data è la serie usata per il fit (de-stagionalizzata,
+        # se la rimozione della stagionalità è riuscita), non la serie grezza:
+        # l'R² per segmento deve essere coerente con la velocità riportata,
+        # entrambe calcolate sulla stessa base.
+        y_per_r2 = getattr(pwlf_model, 'y_data', df_media["deformazione_media"].values)
         for i, row in df_segmenti.iterrows():
             s_num = mdates.date2num(pd.to_datetime(row['data_inizio']))
             e_num = mdates.date2num(pd.to_datetime(row['data_fine']))
@@ -357,7 +401,7 @@ class AnalisiCinematicaTask(QgsTask):
             if np.sum(mask_s) > 1:
                 sl_s, ic_s, r_s, *_ = linregress(
                     x_num[mask_s],
-                    df_media["deformazione_media"].values[mask_s])
+                    y_per_r2[mask_s])
                 r2_s = round(r_s**2, 3)
             else:
                 r2_s = float('nan')
