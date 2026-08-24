@@ -2,10 +2,10 @@
 InSAR Suite — Plugin principale.
 
 Crea una toolbar dedicata con un'icona per ciascuno strumento:
-  [Load da File] [Ricarica quadro] | [EWUD] | [VIS] | [VN] [AA] [STS] [NL] [GEO] | [POLYG] | [SCHEDA]
+  [Load da File] [Ricarica quadro] | [EWUD] | [VIS] | [VN] [AA] [STS] [NL] [GEO] | [POLYG] | [REPORT]
                   LOAD                                        TS
 
-Ordine da sinistra a destra: Load → EWUD → VIS → TS → Polygons → Scheda
+Ordine da sinistra a destra: Load → EWUD → VIS → TS → Polygons → Report
 """
 
 import os
@@ -177,13 +177,13 @@ class InSARSuite:
                 'slot':    self._run_polyg,
                 'section': 'POLYG',
             },
-            # --- SCHEDA ----------------------------------------------------------
+            # --- REPORT ----------------------------------------------------------
             {
-                'icon':    'icon_scheda.png',
-                'text':    'Scheda Riepilogativa PSInSAR',
-                'tooltip': 'Genera la scheda riepilogativa dell\'analisi PSInSAR su un\'area di studio',
-                'slot':    self._run_scheda,
-                'section': 'SCHEDA',
+                'icon':    'icon_report.png',
+                'text':    'InSAR Report',
+                'tooltip': 'Genera il report riepilogativo dell\'analisi PSInSAR su un\'area di studio',
+                'slot':    self._run_report,
+                'section': 'REPORT',
             },
         ]
 
@@ -283,10 +283,10 @@ class InSARSuite:
         self._polyg_dlg = InSARPolygonsDialog(self.iface)
         self._polyg_dlg.show()
 
-    def _run_scheda(self):
-        from .modules.scheda.dialog import SchedaDialog
-        self._scheda_dlg = SchedaDialog(self.iface)
-        self._scheda_dlg.show()
+    def _run_report(self):
+        from .modules.report.dialog import ReportDialog
+        self._report_dlg = ReportDialog(self.iface)
+        self._report_dlg.show()
 
     # ──────────────────────────────────────────────────────────────────────────
     # Slot TS
