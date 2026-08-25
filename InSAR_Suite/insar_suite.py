@@ -180,7 +180,7 @@ class InSARSuite:
             {
                 'icon':    'icon_report.png',
                 'text':    'InSAR Report',
-                'tooltip': 'Genera il report riepilogativo dell\'analisi PSInSAR su un\'area di studio',
+                'tooltip': 'Genera il report riepilogativo dell\'analisi PSI su un\'area di studio',
                 'slot':    self._run_report,
                 'section': 'REPORT',
             },

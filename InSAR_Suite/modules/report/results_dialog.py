@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Finestra dei risultati: replica il layout delil report riepilogativo
-PSInSAR e permette l'esportazione in PNG o Excel."""
+PSI e permette l'esportazione in PNG o Excel."""
 from qgis.PyQt.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox
@@ -87,7 +87,7 @@ class ReportResultsDialog(QDialog):
     def __init__(self, results, parent=None):
         super().__init__(parent)
         self.results = results
-        self.setWindowTitle('Analisi PSInSAR')
+        self.setWindowTitle('Analisi PSI')
         self.setMinimumWidth(680)
         self._build_ui()
 
@@ -128,7 +128,7 @@ class ReportResultsDialog(QDialog):
     def _build_ui(self):
         root = QVBoxLayout(self)
 
-        title = QLabel('Analisi PSInSAR')
+        title = QLabel('Analisi PSI')
         title.setStyleSheet('font-weight:bold; font-size:13px;')
         title.setAlignment(Qt.AlignCenter)
         root.addWidget(title)
@@ -228,7 +228,7 @@ class ReportResultsDialog(QDialog):
         try:
             with open(path, 'w', newline='', encoding='utf-8-sig') as f:
                 w = csv.writer(f, delimiter=';')
-                w.writerow(['Analisi PSInSAR'])
+                w.writerow(['Analisi PSI'])
                 w.writerow([])
                 w.writerow(['Superficie di analisi (mq)', self.results.get('area_mq')])
                 w.writerow([])

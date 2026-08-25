@@ -2,7 +2,7 @@
 """
 InSAR Report — dialogo principale.
 Permette di definire l'area di studio (disegno a mano o file geografico),
-selezionare i layer PS/VIS/EWUD, e avviare il calcolo del Report PSInSAR
+selezionare i layer PS/VIS/EWUD, e avviare il calcolo del Report PSI
 in background (QgsTask).
 """
 import os
@@ -54,7 +54,7 @@ class ReportDialog(QDialog):
     def __init__(self, iface):
         super().__init__(iface.mainWindow())
         self.iface = iface
-        self.setWindowTitle('InSAR — Report PSInSAR')
+        self.setWindowTitle('InSAR — Report PSI')
         self.setMinimumWidth(560)
 
         self.area_geom = None          # QgsGeometry, CRS progetto
