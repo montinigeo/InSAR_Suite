@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Runner per il Report PSInSAR.
+Runner per il Report PSI.
 Esegue tutti i calcoli (N PS, densità, copertura areale, coerenza
 cinematica, velocità medie, visibilità, vettore EWUD) in un QgsTask
 separato per non bloccare la GUI.
@@ -110,7 +110,7 @@ def _metric_crs_for(area_geom_proj, proj_crs, layer_crs):
 
 class ReportTask(QgsTask):
     def __init__(self, params, bridge):
-        super().__init__('Generazione Report PSInSAR', QgsTask.Flag.CanCancel)
+        super().__init__('Generazione Report PSI', QgsTask.Flag.CanCancel)
         self.params = params
         self.bridge = bridge
         self.results = None
