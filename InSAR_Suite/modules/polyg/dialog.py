@@ -27,7 +27,6 @@ from qgis.core import (
     QgsFillSymbol, QgsCoordinateTransform, QgsFeatureRequest,
     QgsTask, QgsApplication, QgsVectorFileWriter, QgsCoordinateTransformContext
 )
-from qgis.PyQt.QtCore import QVariant
 from ..qt_compat import FIELD_INT, FIELD_DOUBLE, FIELD_STRING
 
 from .core import run_analysis, AnalysisWarning

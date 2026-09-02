@@ -29,6 +29,7 @@ from qgis.core import (
     QgsWkbTypes
 )
 from qgis.gui import QgsMapLayerComboBox, QgsFieldComboBox, QgsExtentWidget
+from ..qt_compat import set_layer_filters
 
 # QgsMapLayerProxyModel e QgsFieldProxyModel sono stati spostati da qgis.core
 # a qgis.gui in QGIS 3.30+. Questo try/except garantisce compatibilità con
@@ -121,9 +122,9 @@ def _separator():
     return line
 
 
-def _layer_combo(layer_type):
+def _layer_combo(*layer_type_names):
     cb = QgsMapLayerComboBox()
-    cb.setFilters(layer_type)
+    set_layer_filters(cb, *layer_type_names)
     cb.setAllowEmptyLayer(True)
     cb.setCurrentIndex(0)
     cb.setStyleSheet("""
@@ -404,13 +405,13 @@ class EgmsDialog(QDialog):
 
         # ── PS Ascending ──────────────────────────────────────────────────────
         asc_form = QFormLayout()
-        self.g_ps_asc = _layer_combo(QgsMapLayerProxyModel.Filter.PointLayer)
+        self.g_ps_asc = _layer_combo('PointLayer')
         asc_form.addRow('PS Ascendenti:', self.g_ps_asc)
         layout.addWidget(_group('PS Ascending', asc_form))
 
         # ── PS Descending ─────────────────────────────────────────────────────
         desc_form = QFormLayout()
-        self.g_ps_desc = _layer_combo(QgsMapLayerProxyModel.Filter.PointLayer)
+        self.g_ps_desc = _layer_combo('PointLayer')
         desc_form.addRow('PS Discendenti:', self.g_ps_desc)
         layout.addWidget(_group('PS Descending', desc_form))
 
@@ -441,7 +442,7 @@ class EgmsDialog(QDialog):
 
         # ── Griglia ───────────────────────────────────────────────────────────
         grid_form = QFormLayout()
-        self.e_griglia = _layer_combo(QgsMapLayerProxyModel.Filter.PolygonLayer)
+        self.e_griglia = _layer_combo('PolygonLayer')
         self.e_griglia.layerChanged.connect(self._on_grid_layer_changed)
         grid_form.addRow('Griglia ricampionamento:', self.e_griglia)
 
@@ -480,7 +481,7 @@ class EgmsDialog(QDialog):
 
         # ── PS Ascending ──────────────────────────────────────────────────────
         asc_form = QFormLayout()
-        self.e_ps_asc = _layer_combo(QgsMapLayerProxyModel.Filter.PointLayer)
+        self.e_ps_asc = _layer_combo('PointLayer')
         self.e_ps_asc.layerChanged.connect(self._on_asc_layer_changed)
         asc_form.addRow('Layer PS:', self.e_ps_asc)
 
@@ -511,7 +512,7 @@ class EgmsDialog(QDialog):
 
         # ── PS Descending ─────────────────────────────────────────────────────
         desc_form = QFormLayout()
-        self.e_ps_desc = _layer_combo(QgsMapLayerProxyModel.Filter.PointLayer)
+        self.e_ps_desc = _layer_combo('PointLayer')
         self.e_ps_desc.layerChanged.connect(self._on_desc_layer_changed)
         desc_form.addRow('Layer PS:', self.e_ps_desc)
 

@@ -19,6 +19,7 @@ from qgis.PyQt.QtGui import QIcon, QFont
 from qgis.PyQt.QtCore import Qt
 from qgis.core import Qgis, QgsProject, QgsVectorLayer, QgsWkbTypes
 from qgis.gui import QgsMapLayerComboBox, QgsMapToolIdentifyFeature
+from ..qt_compat import set_layer_filters
 try:
     from qgis.core import QgsMapLayerProxyModel
 except ImportError:
@@ -111,7 +112,7 @@ class TSWidget(QWidget):
 
         h_layer = QHBoxLayout()
         self.cb_layer = QgsMapLayerComboBox()
-        self.cb_layer.setFilters(QgsMapLayerProxyModel.Filter.PointLayer)
+        set_layer_filters(self.cb_layer, 'PointLayer')
         self.cb_layer.setAllowEmptyLayer(True)
         self.cb_layer.setCurrentIndex(0)
         self.cb_layer.setStyleSheet(self._combo_style())

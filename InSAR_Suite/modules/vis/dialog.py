@@ -27,6 +27,7 @@ from qgis.PyQt.QtCore import QVariant
 from ..qt_compat import (
     field_type as _qt_field_type,
     FIELD_INT, FIELD_LONGLONG, FIELD_DOUBLE, FIELD_STRING, FIELD_DATE, FIELD_DATETIME,
+    set_layer_filters,
 )
 
 gdal.UseExceptions()
@@ -415,7 +416,7 @@ class InSARVISDialog(QDialog):
         g.addWidget(QLabel("Shapefile PS (punti):"), 0, 0)
         row = QHBoxLayout()
         self.cb_ps = QgsMapLayerComboBox()
-        self.cb_ps.setFilters(QgsMapLayerProxyModel.Filter.PointLayer)
+        set_layer_filters(self.cb_ps, 'PointLayer')
         row.addWidget(self.cb_ps)
         self.btn_browse_ps = QToolButton()
         self.btn_browse_ps.setText("…")
@@ -426,7 +427,7 @@ class InSARVISDialog(QDialog):
         g.addWidget(QLabel("Raster quote (DEM):"), 1, 0)
         row2 = QHBoxLayout()
         self.cb_dem = QgsMapLayerComboBox()
-        self.cb_dem.setFilters(QgsMapLayerProxyModel.Filter.RasterLayer)
+        set_layer_filters(self.cb_dem, 'RasterLayer')
         row2.addWidget(self.cb_dem)
         self.btn_browse_dem = QToolButton()
         self.btn_browse_dem.setText("…")

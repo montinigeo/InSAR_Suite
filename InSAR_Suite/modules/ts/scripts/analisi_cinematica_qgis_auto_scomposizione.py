@@ -187,11 +187,18 @@ class AnalisiCinematicaTask(QgsTask):
         try:
             period = 12  # ciclo annuale
 
+            # extrapolate_trend=period (intero esplicito, non le stringhe
+            # speciali 'freq'/'period'): estrapola il trend usando l'ultimo
+            # ciclo stagionale completo, evitando NaN ai bordi del grafico.
+            # Le stringhe speciali sono state osservate sollevare
+            # un'eccezione interna a statsmodels (dipendente dalla frequenza
+            # riconosciuta sull'indice della serie) su alcune installazioni;
+            # un intero esplicito evita del tutto quel percorso di codice.
             decomp = seasonal_decompose(
                 df_media["deformazione_media"],
                 period=period,
                 model='additive',
-                extrapolate_trend='freq'
+                extrapolate_trend=period
             )
 
             plt.close('all')

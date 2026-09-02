@@ -10,7 +10,6 @@ import traceback
 
 import numpy as np
 import pandas as pd
-import pwlf
 import matplotlib.dates as mdates
 from statsmodels.tsa.seasonal import seasonal_decompose
 
@@ -210,11 +209,63 @@ class ReportTask(QgsTask):
         return min(100.0, area_clip_m2 / area_studio_m2 * 100.0)
 
     @staticmethod
+    def _fit_2segmenti_robusto(x, y, min_punti_per_lato=3):
+        """Adatta un modello piecewise continuo a 2 segmenti (1 breakpoint)
+        usando una parametrizzazione lineare a "funzione cerniera" (hinge
+        function), risolta con numpy.linalg.lstsq. Non dipende dalla
+        libreria pwlf (che usa un ottimizzatore differential_evolution di
+        scipy, osservato fallire con IndexError su alcune combinazioni di
+        versioni numpy/scipy recenti — es. QGIS 3.44.13). Il breakpoint
+        ottimale è cercato per ricerca esaustiva su tutte le date
+        osservate (rapido: al massimo poche centinaia di punti), quindi il
+        risultato è deterministico e riproducibile al 100%, senza bisogno
+        di alcun seed casuale.
+
+        Il modello è: y = a + b*(x - xb) + c*max(0, x - xb)
+        dove xb è il breakpoint: b è la pendenza prima, (b+c) la pendenza
+        dopo — continuo per costruzione, nessun "salto" nel punto xb.
+
+        Restituisce (v_ultimo, v_precedente, data_breakpoint_iso) in
+        mm/anno (pendenze convertite da giorni ad anni) e stringa
+        'YYYY-MM-DD'. Solleva ValueError se la serie è troppo corta per un
+        fit affidabile.
+        """
+        n = len(x)
+        if n < 2 * min_punti_per_lato:
+            raise ValueError(
+                f"serie troppo corta ({n} punti) per un fit a 2 segmenti "
+                f"affidabile (ne servono almeno {2 * min_punti_per_lato}).")
+
+        best_rss = None
+        best = None
+        for k in range(min_punti_per_lato, n - min_punti_per_lato):
+            xb = x[k]
+            hinge = np.maximum(0.0, x - xb)
+            A = np.column_stack([np.ones(n), x - xb, hinge])
+            coef, _residuals, rank, _sv = np.linalg.lstsq(A, y, rcond=None)
+            if rank < 3:
+                continue  # design matrix degenere per questo xb, si scarta
+            pred = A @ coef
+            rss = float(np.sum((y - pred) ** 2))
+            if best_rss is None or rss < best_rss:
+                best_rss = rss
+                best = (xb, coef[1], coef[1] + coef[2])  # xb, pendenza1, pendenza2
+
+        if best is None:
+            raise ValueError("nessun breakpoint candidato valido trovato.")
+
+        xb, pendenza_prec_giorno, pendenza_ult_giorno = best
+        v_precedente = float(pendenza_prec_giorno) * 365.25
+        v_ultimo = float(pendenza_ult_giorno) * 365.25
+        data_breakpoint = mdates.num2date(xb).strftime('%Y-%m-%d')
+        return v_ultimo, v_precedente, data_breakpoint
+
+    @staticmethod
     def _accelerazione(feats, campi_d, coerente_mask):
         """Analizza la serie storica media dei PS coerenti con una
         regressione piecewise a 2 segmenti fissi (esattamente 1 breakpoint,
         la cui posizione ottimale viene comunque cercata dall'ottimizzatore
-        pwlf). Il numero di segmenti non viene scelto tramite BIC: per un
+        interno). Il numero di segmenti non viene scelto tramite BIC: per un
         rapporto tra due velocità significativo servono sempre e solo due
         velocità da confrontare — lasciare il numero di segmenti variabile
         toglierebbe significato al rapporto stesso, oltre a risentire della
@@ -225,9 +276,16 @@ class ReportTask(QgsTask):
         vuoto = {'rapporto': None, 'v_ultimo': None, 'v_precedente': None,
                  'data_breakpoint': None, 'inversione': False}
         if not campi_d or coerente_mask is None:
+            QgsMessageLog.logMessage(
+                "InSAR Report — Accelerazione: N/D (nessun campo data o "
+                "maschera di coerenza mancante).", "InSAR Report", Qgis.MessageLevel.Info)
             return vuoto
         idx_coerenti = [i for i, c in enumerate(coerente_mask) if c]
         if len(idx_coerenti) < 2:
+            QgsMessageLog.logMessage(
+                f"InSAR Report — Accelerazione: N/D (solo {len(idx_coerenti)} "
+                f"PS coerenti nell'area, ne servono almeno 2).",
+                "InSAR Report", Qgis.MessageLevel.Info)
             return vuoto
 
         date = [pd.to_datetime(c[1:], format='%Y%m%d') for c in campi_d]
@@ -236,6 +294,10 @@ class ReportTask(QgsTask):
         serie_media = np.nanmean(arr, axis=0)
         df_media = pd.DataFrame({'data': date, 'y': serie_media}).dropna().reset_index(drop=True)
         if len(df_media) < 6:
+            QgsMessageLog.logMessage(
+                f"InSAR Report — Accelerazione: N/D (solo {len(df_media)} "
+                f"acquisizioni valide nella serie media, ne servono almeno 6).",
+                "InSAR Report", Qgis.MessageLevel.Info)
             return vuoto
 
         x = mdates.date2num(df_media['data'].values)
@@ -250,9 +312,15 @@ class ReportTask(QgsTask):
             intervallo_medio = float(giorni.median()) if len(giorni) > 0 else 30.0
             period = max(2, round(365.25 / max(intervallo_medio, 1.0)))
             if len(df_media) >= 2 * period:
+                # Nessun extrapolate_trend: usiamo solo decomp.seasonal (non
+                # decomp.trend), che ne dipende solo marginalmente ai bordi
+                # della serie. I valori speciali 'freq'/'period' sono stati
+                # osservati sollevare un'eccezione interna a statsmodels
+                # (dipendente dalla frequenza riconosciuta sull'indice della
+                # serie) su alcune installazioni; evitarli del tutto è più
+                # robusto che tentare un fallback tra le due stringhe.
                 decomp = seasonal_decompose(
-                    df_media['y'], period=period,
-                    model='additive', extrapolate_trend='freq')
+                    df_media['y'], period=period, model='additive')
                 y = (df_media['y'] - decomp.seasonal).values
         except Exception as _e:
             QgsMessageLog.logMessage(
@@ -261,13 +329,12 @@ class ReportTask(QgsTask):
                 "InSAR Report", Qgis.MessageLevel.Warning)
 
         try:
-            model = pwlf.PiecewiseLinFit(x, y, seed=42)
-            model.fit(2)  # sempre e solo 2 segmenti (1 breakpoint fisso)
-            slopes = model.slopes
-            v_ultimo = float(slopes[-1]) * 365.25
-            v_precedente = float(slopes[-2]) * 365.25
-            data_breakpoint = mdates.num2date(model.fit_breaks[1]).strftime('%Y-%m-%d')
+            v_ultimo, v_precedente, data_breakpoint = ReportTask._fit_2segmenti_robusto(x, y)
         except Exception:
+            QgsMessageLog.logMessage(
+                f"InSAR Report — Accelerazione: N/D, il fit a 2 segmenti ha "
+                f"sollevato un'eccezione:\n{traceback.format_exc()}",
+                "InSAR Report", Qgis.MessageLevel.Warning)
             return vuoto
 
         inversione = (v_ultimo * v_precedente < 0)

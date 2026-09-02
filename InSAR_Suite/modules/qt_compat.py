@@ -79,6 +79,23 @@ _logger.info(
 # ---------------------------------------------------------------------------
 # Risoluzione del tipo campo, con più tentativi e log dettagliato
 # ---------------------------------------------------------------------------
+# Alcuni nomi di tipo differiscono tra le due nomenclature: QMetaType.Type
+# usa il nome della classe Qt sottostante con il prefisso "Q" per i tipi
+# non primitivi (rispecchia QString/QDate/QDateTime), mentre il vecchio
+# QVariant.Type usava nomi semplificati senza prefisso. Se non mappato qui,
+# il nome viene provato invariato (funziona per Int/Double/Bool/LongLong,
+# che coincidono su entrambe le nomenclature).
+_QMETATYPE_NAME_MAP = {
+    "String": "QString",
+    "Date": "QDate",
+    "DateTime": "QDateTime",
+    "Time": "QTime",
+    "ByteArray": "QByteArray",
+    "Char": "QChar",
+    "Url": "QUrl",
+}
+
+
 def field_type(name):
     """
     Restituisce il valore da passare come 'type' a QgsField(...), dato un
@@ -86,29 +103,34 @@ def field_type(name):
     'Int', 'LongLong', 'Double', 'String', 'Date', 'DateTime', 'Bool'.
 
     Ordine dei tentativi (il primo che va a buon fine viene usato e loggato):
-      1. QMetaType.Type.<name>   (QGIS 4 / Qt6, forma più recente)
-      2. QMetaType.<name>        (variante alternativa vista in alcune build)
-      3. QVariant.<name>         (QGIS 3 / Qt5, forma storica)
+      1. QMetaType.Type.<nome mappato>   (QGIS 4 / Qt6, forma più recente;
+         il nome viene tradotto tramite _QMETATYPE_NAME_MAP quando necessario,
+         es. 'String' -> 'QString', perché QMetaType.Type non usa gli stessi
+         nomi "semplificati" del vecchio QVariant.Type per i tipi non
+         primitivi)
+      2. QMetaType.<nome mappato>        (variante alternativa vista in alcune build)
+      3. QVariant.<name>                 (QGIS 3 / Qt5, forma storica, nome originale)
 
     Se nessuno dei tre funziona, viene sollevata l'eccezione originale e
     l'errore viene scritto nel log con tutti i dettagli.
     """
     attempts = []
+    qmeta_name = _QMETATYPE_NAME_MAP.get(name, name)
 
     if _HAS_QMETATYPE:
         try:
-            value = getattr(QMetaType.Type, name)
-            _logger.debug("field_type(%r) risolto con QMetaType.Type.%s = %r", name, name, value)
+            value = getattr(QMetaType.Type, qmeta_name)
+            _logger.debug("field_type(%r) risolto con QMetaType.Type.%s = %r", name, qmeta_name, value)
             return value
         except AttributeError as e:
-            attempts.append(("QMetaType.Type.%s" % name, e))
+            attempts.append(("QMetaType.Type.%s" % qmeta_name, e))
 
         try:
-            value = getattr(QMetaType, name)
-            _logger.debug("field_type(%r) risolto con QMetaType.%s = %r", name, name, value)
+            value = getattr(QMetaType, qmeta_name)
+            _logger.debug("field_type(%r) risolto con QMetaType.%s = %r", name, qmeta_name, value)
             return value
         except AttributeError as e:
-            attempts.append(("QMetaType.%s" % name, e))
+            attempts.append(("QMetaType.%s" % qmeta_name, e))
 
     try:
         value = getattr(QVariant, name)
@@ -142,3 +164,49 @@ FIELD_STRING = field_type("String")
 FIELD_DATE = field_type("Date")
 FIELD_DATETIME = field_type("DateTime")
 FIELD_BOOL = field_type("Bool")
+
+
+# ---------------------------------------------------------------------------
+# setFilters() su QgsMapLayerComboBox / QgsMapLayerProxyModel: da QGIS 3.34
+# la forma "int" (QgsMapLayerProxyModel.PointLayer, ecc.) è deprecata a
+# favore di Qgis.LayerFilter (flag enum). La vecchia forma continua a
+# funzionare, ma genera un DeprecationWarning ad ogni chiamata — con
+# installazioni QGIS recenti (es. 3.44.13) il log può risultare rumoroso o,
+# in alcuni casi, l'avviso viene mostrato come se fosse un errore.
+# Questa funzione usa la forma nuova quando disponibile (QGIS >= 3.34),
+# altrimenti ricade sulla vecchia per compatibilità con QGIS 3.16-3.33.
+def set_layer_filters(combo, *names):
+    """Imposta i filtri di tipo layer su un QgsMapLayerComboBox (o oggetto
+    con lo stesso metodo setFilters), usando Qgis.LayerFilter se disponibile
+    (QGIS >= 3.34), altrimenti QgsMapLayerProxyModel.<nome> (QGIS < 3.34).
+    'names' sono stringhe come 'PointLayer', 'PolygonLayer', 'RasterLayer'."""
+    try:
+        from qgis.core import Qgis
+        flags = None
+        for n in names:
+            v = getattr(Qgis.LayerFilter, n)
+            flags = v if flags is None else (flags | v)
+        # L'OR bit a bit tra membri di Qgis.LayerFilter non produce sempre
+        # automaticamente un'istanza di Qgis.LayerFilters (il tipo "flags"
+        # plurale atteso dalla firma moderna di setFilters()): incapsularlo
+        # esplicitamente garantisce che venga selezionato l'overload
+        # moderno e non quello deprecato basato su int, anche quando il
+        # solo operatore | restituisse un intero semplice.
+        try:
+            flags = Qgis.LayerFilters(flags)
+        except Exception as _e2:
+            _logger.debug("set_layer_filters(%s): impossibile incapsulare in "
+                           "Qgis.LayerFilters (%s), passo il valore così com'è.",
+                           names, _e2)
+        combo.setFilters(flags)
+        _logger.debug("set_layer_filters(%s) risolto con Qgis.LayerFilter", names)
+        return
+    except (ImportError, AttributeError) as e:
+        _logger.debug("set_layer_filters(%s): Qgis.LayerFilter non disponibile (%s), "
+                       "uso QgsMapLayerProxyModel legacy.", names, e)
+
+    from qgis.core import QgsMapLayerProxyModel
+    flags = 0
+    for n in names:
+        flags |= getattr(QgsMapLayerProxyModel, n)
+    combo.setFilters(flags)
