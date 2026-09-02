@@ -43,7 +43,7 @@ La versione 3.3.4 porta su questo ramo le stesse correzioni di compatibilità de
 | **InSAR Load** | Caricamento layer PS da GeoPackage, Shapefile o GDB tramite un quadro di unione poligonale, con attivazione automatica al clic su mappa. Supporta anche il ricaricamento di un quadro già presente nel progetto. |
 | **InSAR EWUD** | Ricostruzione del vettore velocità nel piano Est-Ovest / Up-Down dalle velocità LOS di coppie ascending/descending. Griglia di ricampionamento con celle quadrate o esagonali. Preset satellitari inclusi (Sentinel-1 EGMS - Italia centro-settentrionale, Sentinel-1 generico, ERS/Envisat, ALOS/ALOS-2, RADARSAT-2, COSMO-SkyMed, TerraSAR-X/TanDEM-X). Output con campi Na e Nd (numero PS per cella). |
 | **InSAR VIS** | Calcolo della percentuale di movimento rilevabile (pc_mov) in funzione della geometria SAR e della morfologia del terreno (Aspect/Slope da DEM). Il DEM viene ritagliato alla risoluzione originale con snap to grid (targetAlignedPixels). Output salvabile come GeoPackage permanente. Preset satellitari inclusi (stessi di EWUD). Elaborazione tramite QgsTask (GUI non bloccante). |
-| **InSAR TS** | Analisi serie storiche: qualità del dato (con skewness e kurtosis), analisi cinematica automatica, scomposizione STL, analisi non lineare piecewise (pwlf), rilevamento anomalie temporali, confronto tra zone. Supporto formati data DYYYYMMDD e YYYYMMDD. Pulsante "Carica PS coerenti in QGIS" disponibile nei grafici. |
+| **InSAR TS** | Analisi serie storiche: qualità del dato (con skewness e kurtosis), analisi cinematica automatica, scomposizione STL, analisi non lineare piecewise, rilevamento anomalie temporali, confronto tra zone. Supporto formati data DYYYYMMDD e YYYYMMDD. Pulsante "Carica PS coerenti in QGIS" disponibile nei grafici. |
 | **InSAR Polygons** | Delimitazione automatica delle aree di deformazione: classificazione PS per soglia di velocità, buffer e dissolve geometrico per classe, validazione e smoothing morfologico. Output poligonale con attributi statistici (velocità media, n. PS, area km²). Output salvabile come GeoPackage permanente (dalla v3.3.0). |
 | **InSAR Report** | Genera automaticamente un report riepilogativo dell'analisi PSI su un'area di studio (disegnata, caricata da file o selezionata da un layer del progetto): numero di PS, densità, copertura areale, coerenza cinematica, visibilità e velocità (con deviazione standard) per i dataset ascendente e discendente, rilevamento dell'accelerazione (soglia configurabile) e vettore EWUD medio con numero di celle nell'area. Esportabile in PNG o CSV. |
 
@@ -68,14 +68,14 @@ La versione 3.3.4 porta su questo ramo le stesse correzioni di compatibilità de
 | **Qualità del dato** | Istogramma + curva normale N(μ,σ), Q-Q plot, boxplot con dati individuali, statistiche robuste (media, std, mediana, IQR, MAD, skewness, kurtosis, z-score robusto, Shapiro-Wilk). Selettore trasformazione in tempo reale. Pulsante "Carica PS coerenti in QGIS". |
 | **Analisi automatica** | Serie storica media ±1σ, trend OLS con velocità e R², tooltip interattivo, pulsante per caricare la tabella in QGIS. Pulsante "Carica PS coerenti in QGIS". |
 | **Scomposizione STL** | Scomposizione della serie media in trend T(t), stagionalità S(t) e residuo R(t). Pulsante "Carica PS coerenti in QGIS". |
-| **Analisi non lineare** | Regressione piecewise (pwlf), ottimizzazione BIC, numero massimo di segmenti configurabile (2–5), tabella riepilogativa con periodo, velocità e R² per ogni segmento. Pulsante "Carica PS coerenti in QGIS". |
+| **Analisi non lineare** | Regressione piecewise, ottimizzazione BIC, numero massimo di segmenti configurabile (2–5), tabella riepilogativa con periodo, velocità e R² per ogni segmento. Pulsante "Carica PS coerenti in QGIS". |
 | **Anomalie temporali** | Rilevamento acquisizioni anomale su residui (soglia nσ) e variazioni consecutive (soglia Δmm). Tooltip ⚠ ANOMALIA sulle date anomale. |
 | **Confronto tra zone** | Confronto serie medie tra 2–3 zone con pannello non modale, bande ±1σ e rette OLS. |
 
 ### Requisiti
 
 - **QGIS 3.16 – 3.99** (plugin v3.2.x) oppure **QGIS 4.00+** (plugin v3.3.x, Qt6)
-- Python 3 con librerie: `pandas`, `numpy`, `matplotlib`, `scipy`, `statsmodels`, `pyproj`, `mplcursors`, `pwlf`
+- Python 3 con librerie: `pandas`, `numpy`, `matplotlib`, `scipy`, `statsmodels`, `pyproj`, `mplcursors`
 
 > A partire dalla v3.0 la libreria `pykrige` non è più richiesta dalla toolbar principale. La geostatistica è disponibile come script standalone nella cartella `docs/`.
 
@@ -159,7 +159,7 @@ Version 3.3.4 brings to this branch the same compatibility fixes as 3.2.8 for QG
 | **InSAR Load** | Loads PSI point layers from GeoPackage, Shapefile or GDB using a polygon index layer, with automatic loading on map selection. Also supports reactivation of an index already loaded in the project. |
 | **InSAR EWUD** | Reconstructs the velocity vector in the East-West / Up-Down plane from ascending/descending LOS velocities. Resampling grid with square or hexagonal cells. Includes satellite presets (Sentinel-1 EGMS - central-northern Italy, Sentinel-1 generic, ERS/Envisat, ALOS/ALOS-2, RADARSAT-2, COSMO-SkyMed, TerraSAR-X/TanDEM-X). Output includes Na and Nd fields (PS count per cell). |
 | **InSAR VIS** | Calculates detectable movement percentage (pc_mov) based on SAR acquisition geometry and terrain morphology (Aspect/Slope from DEM). The DEM is clipped at its original resolution with snap to grid (targetAlignedPixels). Output can be saved as a permanent GeoPackage. Includes satellite presets (same as EWUD). Runs as a QgsTask (non-blocking GUI). |
-| **InSAR TS** | Time series analysis: data quality check (with skewness and kurtosis), automatic mean series, STL seasonal decomposition, piecewise non-linear analysis (pwlf), temporal anomaly detection, multi-zone comparison. Supports DYYYYMMDD and YYYYMMDD date formats. "Load coherent PS to QGIS" button available in charts. |
+| **InSAR TS** | Time series analysis: data quality check (with skewness and kurtosis), automatic mean series, STL seasonal decomposition, piecewise non-linear analysis, temporal anomaly detection, multi-zone comparison. Supports DYYYYMMDD and YYYYMMDD date formats. "Load coherent PS to QGIS" button available in charts. |
 | **InSAR Polygons** | Automatic delineation of deformation areas: PS classification by velocity threshold, buffer and geometric dissolve by velocity class, validation and morphological smoothing. Polygonal output with statistical attributes (mean velocity, PS count, area km²). Output can be saved as a permanent GeoPackage (from v3.3.0). |
 | **InSAR Report** | Automatically generates a PSI summary sheet for a study area (hand-drawn, loaded from a file, or picked from a project layer): PS count, density, areal coverage, kinematic coherence, visibility and velocity (with standard deviation) for both ascending and descending datasets, acceleration detection (configurable threshold), and the mean EWUD vector with the number of cells within the area. Exportable as PNG or CSV. |
 
@@ -184,14 +184,14 @@ Version 3.3.4 brings to this branch the same compatibility fixes as 3.2.8 for QG
 | **Data quality** | Histogram + normal curve N(μ,σ), Q-Q plot, individual data boxplot, robust statistics (mean, std, median, IQR, MAD, skewness, kurtosis, robust z-score, Shapiro-Wilk). Real-time transformation selector. "Load coherent PS to QGIS" button. |
 | **Automatic analysis** | Mean time series ±1σ, OLS trend with velocity and R², interactive tooltip, button to load the table into QGIS. "Load coherent PS to QGIS" button. |
 | **STL decomposition** | Decomposition of the mean series into trend T(t), seasonality S(t) and residual R(t). "Load coherent PS to QGIS" button. |
-| **Non-linear analysis** | Piecewise regression (pwlf), BIC optimisation, configurable maximum number of segments (2–5), summary table with period, velocity and R² per segment. "Load coherent PS to QGIS" button. |
+| **Non-linear analysis** | Piecewise regression, BIC optimisation, configurable maximum number of segments (2–5), summary table with period, velocity and R² per segment. "Load coherent PS to QGIS" button. |
 | **Temporal anomalies** | Detection of anomalous acquisitions based on residual threshold (nσ) and consecutive variation threshold (Δmm). Interactive ⚠ ANOMALY tooltip. |
 | **Zone comparison** | Comparison of mean time series between 2–3 zones with non-modal panel, ±1σ bands and OLS regression lines. |
 
 ### Requirements
 
 - **QGIS 3.16 – 3.99** (plugin v3.2.x) or **QGIS 4.00+** (plugin v3.3.x, Qt6)
-- Python 3 with libraries: `pandas`, `numpy`, `matplotlib`, `scipy`, `statsmodels`, `pyproj`, `mplcursors`, `pwlf`
+- Python 3 with libraries: `pandas`, `numpy`, `matplotlib`, `scipy`, `statsmodels`, `pyproj`, `mplcursors`
 
 > From v3.0 onwards, the `pykrige` library is no longer required by the main toolbar. Geostatistics is available as a standalone script in the `docs/` folder.
 
