@@ -7,7 +7,6 @@ from qgis.core import QgsTask, QgsMessageLog, Qgis, QgsApplication
 from qgis.utils import iface
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QInputDialog
 import mplcursors
-import pwlf
 from scipy.stats import linregress
 from statsmodels.tsa.seasonal import seasonal_decompose
 import re  # Import per regex
@@ -34,6 +33,98 @@ def _qv(v):
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+def _fit_piecewise_hinge(x, y, n_segments, min_punti_per_lato=3):
+    """Adatta un modello piecewise continuo con n_segments segmenti
+    (n_segments-1 breakpoint interni), usando una parametrizzazione
+    lineare a funzioni cerniera (hinge), risolta con numpy.linalg.lstsq.
+    I breakpoint sono scelti con una ricerca "in avanti" (forward
+    selection): si parte da 0 breakpoint (una sola retta) e a ogni passo
+    si aggiunge, tra tutte le date candidate, quella che riduce di più la
+    somma dei quadrati dei residui del modello con i breakpoint già
+    scelti più quello nuovo. Non è garantito l'ottimo globale (a
+    differenza di una ricerca esaustiva, intrattabile oltre 2
+    breakpoint), ma è interamente basato su numpy.linalg.lstsq (nessun
+    ottimizzatore non lineare), quindi non risente della fragilità di
+    pwlf/differential_evolution osservata con alcune combinazioni di
+    versioni numpy/scipy recenti (es. QGIS 3.44.13).
+
+    Restituisce (breaks, slopes, intercepts, rss, predict_func):
+    breaks è una lista di n_segments+1 posizioni x (incluse le estremità
+    della serie), slopes/intercepts hanno n_segments elementi ciascuno
+    (pendenza e intercetta di ciascun segmento, per compatibilità con il
+    formato usato in precedenza da pwlf), rss è la somma dei quadrati dei
+    residui del fit finale, predict_func(x_new) valuta il modello su un
+    array arbitrario di ascisse."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    n = len(x)
+    n_breaks = n_segments - 1
+    if n < n_segments * min_punti_per_lato:
+        raise ValueError(
+            f"serie troppo corta ({n} punti) per {n_segments} segmenti "
+            f"(ne servono almeno {n_segments * min_punti_per_lato}).")
+
+    def _design_matrix(breaks_interni):
+        cols = [np.ones(n), x.copy()]
+        for b in breaks_interni:
+            cols.append(np.maximum(0.0, x - b))
+        return np.column_stack(cols)
+
+    candidati_base = x[min_punti_per_lato: n - min_punti_per_lato]
+
+    breaks_interni = []
+    for _ in range(n_breaks):
+        best_rss = None
+        best_b = None
+        for cand in candidati_base:
+            if any(abs(cand - b) < 1e-9 for b in breaks_interni):
+                continue
+            trial = sorted(breaks_interni + [cand])
+            A = _design_matrix(trial)
+            if A.shape[0] <= A.shape[1]:
+                continue
+            coef, _res, rank, _sv = np.linalg.lstsq(A, y, rcond=None)
+            if rank < A.shape[1]:
+                continue  # design matrix degenere per questo candidato
+            pred = A @ coef
+            rss = float(np.sum((y - pred) ** 2))
+            if best_rss is None or rss < best_rss:
+                best_rss = rss
+                best_b = cand
+        if best_b is None:
+            raise ValueError("nessun breakpoint candidato valido trovato.")
+        breaks_interni.append(best_b)
+
+    breaks_interni = sorted(breaks_interni)
+    A = _design_matrix(breaks_interni)
+    coef, _res, rank, _sv = np.linalg.lstsq(A, y, rcond=None)
+    pred_finale = A @ coef
+    rss_final = float(np.sum((y - pred_finale) ** 2))
+
+    def _predict(x_new):
+        x_new = np.asarray(x_new, dtype=float)
+        out = coef[0] + coef[1] * x_new
+        for j, b in enumerate(breaks_interni):
+            out = out + coef[2 + j] * np.maximum(0.0, x_new - b)
+        return out
+
+    slopes = [float(coef[1])]
+    cum = float(coef[1])
+    for j in range(n_breaks):
+        cum += float(coef[2 + j])
+        slopes.append(cum)
+
+    breaks_completi = [float(x[0])] + [float(b) for b in breaks_interni] + [float(x[-1])]
+    intercepts = []
+    for i in range(n_segments):
+        xb = breaks_completi[i]
+        y_at_start = float(_predict(np.array([xb]))[0])
+        intercepts.append(y_at_start - slopes[i] * xb)
+
+    return breaks_completi, slopes, intercepts, rss_final, _predict
+
 
 def corr_valid(x, y):
     mask = ~np.isnan(x) & ~np.isnan(y)
@@ -166,7 +257,7 @@ class AnalisiCinematicaTask(QgsTask):
 
                 if len(ps_coerenti) == 0:
                     msg_info = f"⚠️ Nessun PS coerente trovato tra {n} punti selezionati."
-                    self.result = (None, None, None, None, None, None, msg_info, Qgis.Warning, False)
+                    self.result = (None, None, None, None, None, None, None, msg_info, Qgis.Warning, False)
                     return True
                 elif len(ps_coerenti) == 1:
                     msg_info = f"ℹ️ Solo 1 PS coerente trovato su {n} selezionati."
@@ -199,9 +290,17 @@ class AnalisiCinematicaTask(QgsTask):
                 intervallo_medio = float(giorni.median()) if len(giorni) > 0 else 30.0
                 period = max(2, round(365.25 / max(intervallo_medio, 1.0)))
                 if len(df_media) >= 2 * period:
+                    # Nessun extrapolate_trend: usiamo solo decomp.seasonal
+                    # (non decomp.trend), che ne dipende solo marginalmente
+                    # ai bordi della serie. I valori speciali 'freq'/'period'
+                    # sono stati osservati sollevare un'eccezione interna a
+                    # statsmodels (dipendente dalla frequenza riconosciuta
+                    # sull'indice della serie) su alcune installazioni;
+                    # evitarli del tutto è più robusto che tentare un
+                    # fallback tra le due stringhe.
                     decomp = seasonal_decompose(
                         df_media["deformazione_media"], period=period,
-                        model='additive', extrapolate_trend='freq')
+                        model='additive')
                     y = (df_media["deformazione_media"] - decomp.seasonal).values
                     QgsMessageLog.logMessage(
                         f"InSAR TS – Piecewise: componente stagionale rimossa prima del "
@@ -220,7 +319,6 @@ class AnalisiCinematicaTask(QgsTask):
                     "InSAR TS", Qgis.Warning)
                 y = y_originale
 
-            pwlf_model = pwlf.PiecewiseLinFit(x, y, seed=42)
             # BIC su range 2..n_seg_utente — trova il numero ottimale di segmenti
             max_segments = max(2, self.n_seg_utente)
             QgsMessageLog.logMessage(
@@ -231,13 +329,16 @@ class AnalisiCinematicaTask(QgsTask):
             res_bic = []
             for i in range(2, max_segments + 1):
                 try:
-                    pwlf_model.fit(i)
-                    rss = max(pwlf_model.ssr, 1e-9)
+                    _b, _s, _ic, rss, _pred = _fit_piecewise_hinge(x, y, i)
+                    rss = max(rss, 1e-9)
                     n_points = len(x)
                     k = 2 * i
                     bic = n_points * np.log(rss / n_points) + k * np.log(n_points)
                     res_bic.append((i, bic))
-                except Exception:
+                except Exception as _e:
+                    QgsMessageLog.logMessage(
+                        f"InSAR TS – Piecewise: fit a {i} segmenti non riuscito ({_e}).",
+                        "InSAR TS", Qgis.Info)
                     res_bic.append((i, np.inf))
             best_segments = min(res_bic, key=lambda t: t[1])[0] if res_bic else 2
             QgsMessageLog.logMessage(
@@ -245,10 +346,8 @@ class AnalisiCinematicaTask(QgsTask):
                 f"su {max_segments} testati. BIC scores: {[(s, round(b,1)) for s,b in res_bic]}",
                 "InSAR TS", Qgis.Info
             )
-            pwlf_model.fit(best_segments)
-            breaks = pwlf_model.fit_breaks
-            slopes = pwlf_model.slopes
-            intercepts = pwlf_model.intercepts
+            breaks, slopes, intercepts, _rss_finale, pwlf_predict = \
+                _fit_piecewise_hinge(x, y, best_segments)
 
             segmenti = []
             for i in range(best_segments):
@@ -267,7 +366,7 @@ class AnalisiCinematicaTask(QgsTask):
             self.salva_excel = False
             self.percorso_excel = None
 
-            self.result = (ps_coerenti, df_media, df_segmenti, breaks, pwlf_model,
+            self.result = (ps_coerenti, df_media, df_segmenti, breaks, pwlf_predict, y,
                            self.percorso_excel, msg_info, Qgis.Info, True)
             return True
 
@@ -282,7 +381,7 @@ class AnalisiCinematicaTask(QgsTask):
                 'Elaborazione non completata. Controlla il log di QGIS per i dettagli.')
             return
 
-        ps_coerenti, df_media, df_segmenti, breaks, pwlf_model, percorso_excel, msg_info, msg_level, do_plot = self.result
+        ps_coerenti, df_media, df_segmenti, breaks, pwlf_predict, y_fit, percorso_excel, msg_info, msg_level, do_plot = self.result
 
         QgsMessageLog.logMessage(msg_info, "Cinematica", msg_level)
 
@@ -312,7 +411,7 @@ class AnalisiCinematicaTask(QgsTask):
         x_pred    = np.linspace(x_num.min(), x_num.max(), 500)
         dates_pred = mdates.num2date(x_pred)
         y_tot     = slope_tot * x_pred + intercept_tot
-        y_pw      = pwlf_model.predict(x_pred)
+        y_pw      = pwlf_predict(x_pred)
 
         # Layout: grafico in alto (80%) + tabella in basso (20%)
         fig = plt.figure(figsize=(12, 8))
@@ -389,11 +488,11 @@ class AnalisiCinematicaTask(QgsTask):
                      f'{r2_tot:.3f}'])
 
         # Righe segmenti
-        # NB: pwlf_model.y_data è la serie usata per il fit (de-stagionalizzata,
-        # se la rimozione della stagionalità è riuscita), non la serie grezza:
+        # NB: y_fit è la serie usata per il fit (de-stagionalizzata, se la
+        # rimozione della stagionalità è riuscita), non la serie grezza:
         # l'R² per segmento deve essere coerente con la velocità riportata,
         # entrambe calcolate sulla stessa base.
-        y_per_r2 = getattr(pwlf_model, 'y_data', df_media["deformazione_media"].values)
+        y_per_r2 = y_fit if y_fit is not None else df_media["deformazione_media"].values
         for i, row in df_segmenti.iterrows():
             s_num = mdates.date2num(pd.to_datetime(row['data_inizio']))
             e_num = mdates.date2num(pd.to_datetime(row['data_fine']))

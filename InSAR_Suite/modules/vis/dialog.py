@@ -23,7 +23,7 @@ from qgis.core import (
     QgsTask, QgsApplication
 )
 from qgis.gui import QgsMapLayerComboBox, QgsExtentWidget
-from qgis.PyQt.QtCore import QVariant
+from ..qt_compat import set_layer_filters
 
 gdal.UseExceptions()
 
@@ -347,21 +347,25 @@ class InSARTask(QgsTask):
         self._prog(88, "Costruzione layer risultato...")
         self._chk()
 
+        from ..qt_compat import (
+            FIELD_INT, FIELD_LONGLONG, FIELD_DOUBLE, FIELD_STRING,
+            FIELD_DATE, FIELD_DATETIME
+        )
         OGR_TO_QVARIANT = {
-            ogr.OFTInteger:   QVariant.Int,
-            ogr.OFTInteger64: QVariant.LongLong,
-            ogr.OFTReal:      QVariant.Double,
-            ogr.OFTString:    QVariant.String,
-            ogr.OFTDate:      QVariant.Date,
-            ogr.OFTDateTime:  QVariant.DateTime,
+            ogr.OFTInteger:   FIELD_INT,
+            ogr.OFTInteger64: FIELD_LONGLONG,
+            ogr.OFTReal:      FIELD_DOUBLE,
+            ogr.OFTString:    FIELD_STRING,
+            ogr.OFTDate:      FIELD_DATE,
+            ogr.OFTDateTime:  FIELD_DATETIME,
         }
         fields = QgsFields()
         for fd in field_defs:
             fields.append(QgsField(fd["name"],
-                OGR_TO_QVARIANT.get(fd["ogr_type"], QVariant.String)))
-        fields.append(QgsField("esp1",   QVariant.Double))
-        fields.append(QgsField("inc1",   QVariant.Double))
-        fields.append(QgsField("pc_mov", QVariant.Double))
+                OGR_TO_QVARIANT.get(fd["ogr_type"], FIELD_STRING)))
+        fields.append(QgsField("esp1",   FIELD_DOUBLE))
+        fields.append(QgsField("inc1",   FIELD_DOUBLE))
+        fields.append(QgsField("pc_mov", FIELD_DOUBLE))
 
         mem = QgsVectorLayer("Point?crs=" + ps_id, out_name, "memory")
         dp  = mem.dataProvider()
@@ -413,7 +417,7 @@ class InSARVISDialog(QDialog):
         g.addWidget(QLabel("Shapefile PS (punti):"), 0, 0)
         row = QHBoxLayout()
         self.cb_ps = QgsMapLayerComboBox()
-        self.cb_ps.setFilters(QgsMapLayerProxyModel.PointLayer)
+        set_layer_filters(self.cb_ps, 'PointLayer')
         row.addWidget(self.cb_ps)
         self.btn_browse_ps = QToolButton()
         self.btn_browse_ps.setText("…")
@@ -424,7 +428,7 @@ class InSARVISDialog(QDialog):
         g.addWidget(QLabel("Raster quote (DEM):"), 1, 0)
         row2 = QHBoxLayout()
         self.cb_dem = QgsMapLayerComboBox()
-        self.cb_dem.setFilters(QgsMapLayerProxyModel.RasterLayer)
+        set_layer_filters(self.cb_dem, 'RasterLayer')
         row2.addWidget(self.cb_dem)
         self.btn_browse_dem = QToolButton()
         self.btn_browse_dem.setText("…")

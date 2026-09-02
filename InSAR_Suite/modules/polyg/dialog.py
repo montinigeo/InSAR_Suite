@@ -27,7 +27,7 @@ from qgis.core import (
     QgsFillSymbol, QgsCoordinateTransform, QgsFeatureRequest,
     QgsTask, QgsApplication
 )
-from qgis.PyQt.QtCore import QVariant
+from ..qt_compat import FIELD_INT, FIELD_DOUBLE, FIELD_STRING
 
 from .core import run_analysis, AnalysisWarning
 
@@ -617,16 +617,16 @@ class InSARPolygonsDialog(QDialog):
         pr = vl.dataProvider()
 
         field_defs = [
-            ("cluster_id",  QVariant.Int),
-            ("vel_class",   QVariant.String),
-            ("priority",    QVariant.Int),
-            ("n_ps",        QVariant.Int),
-            ("n_unstable",  QVariant.Int),
-            ("vel_mean",    QVariant.Double),
-            ("vel_std",     QVariant.Double),
-            ("vel_min",     QVariant.Double),
-            ("vel_max",     QVariant.Double),
-            ("area_km2",    QVariant.Double),
+            ("cluster_id",  FIELD_INT),
+            ("vel_class",   FIELD_STRING),
+            ("priority",    FIELD_INT),
+            ("n_ps",        FIELD_INT),
+            ("n_unstable",  FIELD_INT),
+            ("vel_mean",    FIELD_DOUBLE),
+            ("vel_std",     FIELD_DOUBLE),
+            ("vel_min",     FIELD_DOUBLE),
+            ("vel_max",     FIELD_DOUBLE),
+            ("area_km2",    FIELD_DOUBLE),
         ]
         pr.addAttributes([QgsField(n, t) for n, t in field_defs])
         vl.updateFields()

@@ -35,6 +35,20 @@ plt.close('all')
 MIN_PS = 3  # minimo assoluto per avviare l'analisi
 
 
+def _boxplot_compat(ax, data, **kwargs):
+    """Disegna un boxplot verticale in modo compatibile con qualunque
+    versione di matplotlib: dalla 3.11 il parametro 'vert' è deprecato a
+    favore di 'orientation', ma le versioni precedenti non riconoscono
+    affatto 'orientation'. Si prova prima la forma moderna e, solo se
+    genera un TypeError (parametro non riconosciuto), si ricade su
+    quella storica — così il plugin resta compatibile con l'intero
+    intervallo di versioni matplotlib usato da QGIS 3.16-3.99."""
+    try:
+        return ax.boxplot(data, orientation='vertical', **kwargs)
+    except TypeError:
+        return ax.boxplot(data, vert=True, **kwargs)
+
+
 # ── Dialogo soglia correlazione ───────────────────────────────────────────────
 
 def _qv(v):
@@ -328,7 +342,7 @@ class QualitaDato:
 
         # ── 3. Boxplot (colonna destra, riga 0) ───────────────────────────────
         ax3 = fig.add_subplot(gs[0, 2])
-        bp = ax3.boxplot(vel, vert=True, patch_artist=True, widths=0.45,
+        bp = _boxplot_compat(ax3, vel, patch_artist=True, widths=0.45,
                          medianprops=dict(color="#f39c12", lw=2.5),
                          boxprops=dict(facecolor="#aed6f1", alpha=0.5,
                                        edgecolor="#2980b9"),
@@ -624,7 +638,7 @@ class QualitaDato:
             ax3.set_facecolor(col_bg)
             ax3.spines['top'].set_visible(False); ax3.spines['right'].set_visible(False)
             ax3.spines['left'].set_color(col_ax); ax3.spines['bottom'].set_color(col_ax)
-            bp_v = ax3.boxplot(v, vert=True, patch_artist=True, widths=0.45,
+            bp_v = _boxplot_compat(ax3, v, patch_artist=True, widths=0.45,
                                medianprops=dict(color='#f39c12', lw=2.5),
                                boxprops=dict(facecolor='#aed6f1', alpha=0.5,
                                              edgecolor='#2980b9'),

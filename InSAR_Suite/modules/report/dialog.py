@@ -27,6 +27,7 @@ except ImportError:
 from .maptool import PolygonDrawTool
 from .runner import ReportTask
 from .results_dialog import ReportResultsDialog
+from ..qt_compat import set_layer_filters
 
 
 class TaskBridge(QObject):
@@ -35,9 +36,9 @@ class TaskBridge(QObject):
     error_signal    = pyqtSignal(str)
 
 
-def _layer_combo(layer_type, allow_empty=True):
+def _layer_combo(*layer_type_names, allow_empty=True):
     cb = QgsMapLayerComboBox()
-    cb.setFilters(layer_type)
+    set_layer_filters(cb, *layer_type_names)
     cb.setAllowEmptyLayer(allow_empty)
     if allow_empty:
         cb.setCurrentIndex(0)
@@ -95,7 +96,7 @@ class ReportDialog(QDialog):
         v_area.addLayout(draw_row)
 
         layer_row = QHBoxLayout()
-        self.cb_area_layer = _layer_combo(QgsMapLayerProxyModel.PolygonLayer)
+        self.cb_area_layer = _layer_combo('PolygonLayer')
         self.cb_area_layer.setEnabled(False)
         self.cb_area_layer.layerChanged.connect(self._on_area_layer_changed)
         self.btn_area_file = QToolButton()
@@ -116,7 +117,7 @@ class ReportDialog(QDialog):
         grp_ps = QGroupBox('Layer PS')
         form_ps = QFormLayout(grp_ps)
 
-        self.cb_ps_asc = _layer_combo(QgsMapLayerProxyModel.PointLayer)
+        self.cb_ps_asc = _layer_combo('PointLayer')
         self.cb_ps_asc_field = QgsFieldComboBox()
         self.cb_ps_asc_field.setFilters(QgsFieldProxyModel.Numeric)
         self.cb_ps_asc.layerChanged.connect(self.cb_ps_asc_field.setLayer)
@@ -125,7 +126,7 @@ class ReportDialog(QDialog):
         row_asc.addWidget(self.cb_ps_asc_field, 1)
         form_ps.addRow('PS Ascendente + campo velocità:', row_asc)
 
-        self.cb_ps_desc = _layer_combo(QgsMapLayerProxyModel.PointLayer)
+        self.cb_ps_desc = _layer_combo('PointLayer')
         self.cb_ps_desc_field = QgsFieldComboBox()
         self.cb_ps_desc_field.setFilters(QgsFieldProxyModel.Numeric)
         self.cb_ps_desc.layerChanged.connect(self.cb_ps_desc_field.setLayer)
@@ -139,8 +140,8 @@ class ReportDialog(QDialog):
         # ── VIS (opzionale) ─────────────────────────────────────────────────
         grp_vis = QGroupBox('Layer VIS (opzionale — deve avere il campo "pc_mov")')
         form_vis = QFormLayout(grp_vis)
-        self.cb_vis_asc = _layer_combo(QgsMapLayerProxyModel.PointLayer, allow_empty=True)
-        self.cb_vis_desc = _layer_combo(QgsMapLayerProxyModel.PointLayer, allow_empty=True)
+        self.cb_vis_asc = _layer_combo('PointLayer', allow_empty=True)
+        self.cb_vis_desc = _layer_combo('PointLayer', allow_empty=True)
         form_vis.addRow('VIS Ascendente:', self.cb_vis_asc)
         form_vis.addRow('VIS Discendente:', self.cb_vis_desc)
         root.addWidget(grp_vis)
@@ -149,7 +150,7 @@ class ReportDialog(QDialog):
         grp_ewud = QGroupBox('Layer EWUD (opzionale — Centroidi_EWUD o Poligoni_EWUD)')
         form_ewud = QFormLayout(grp_ewud)
         self.cb_ewud = _layer_combo(
-            QgsMapLayerProxyModel.PointLayer | QgsMapLayerProxyModel.PolygonLayer,
+            'PointLayer', 'PolygonLayer',
             allow_empty=True)
         form_ewud.addRow('Layer EWUD:', self.cb_ewud)
         root.addWidget(grp_ewud)

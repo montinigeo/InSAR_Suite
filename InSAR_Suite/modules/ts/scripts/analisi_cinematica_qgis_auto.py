@@ -19,7 +19,22 @@ from qgis.core import (
 from qgis.PyQt.QtWidgets import (
     QDialog, QVBoxLayout, QDoubleSpinBox, QDialogButtonBox, QMessageBox
 )
-from qgis.PyQt.QtCore import QVariant
+
+# qt_compat viene caricato tramite percorso assoluto (non import relativo)
+# perché questo script gira via runpy.run_path() come standalone, senza
+# un pacchetto Python "genitore" noto.
+import os as _os
+import importlib.util as _ilu
+_qt_compat_path = _os.path.join(
+    _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
+    "qt_compat.py",
+)
+_spec = _ilu.spec_from_file_location("insar_suite_qt_compat", _qt_compat_path)
+_qt_compat = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_qt_compat)
+FIELD_INT = _qt_compat.FIELD_INT
+FIELD_DOUBLE = _qt_compat.FIELD_DOUBLE
+FIELD_STRING = _qt_compat.FIELD_STRING
 import mplcursors
 
 # Registro globale per prevenire garbage collection dei task attivi
@@ -232,12 +247,12 @@ class AnalisiCinematicaTask(QgsTask):
             pr = vl.dataProvider()
 
             pr.addAttributes([
-                QgsField("data",                  QVariant.String),
-                QgsField("deformazione_media_mm", QVariant.Double),
-                QgsField("dev_standard_mm",       QVariant.Double),
-                QgsField("n_ps_selezionati",      QVariant.Int),
-                QgsField("n_ps_coerenti",         QVariant.Int),
-                QgsField("soglia_correlazione",   QVariant.Double),
+                QgsField("data",                  FIELD_STRING),
+                QgsField("deformazione_media_mm", FIELD_DOUBLE),
+                QgsField("dev_standard_mm",       FIELD_DOUBLE),
+                QgsField("n_ps_selezionati",      FIELD_INT),
+                QgsField("n_ps_coerenti",         FIELD_INT),
+                QgsField("soglia_correlazione",   FIELD_DOUBLE),
             ])
             vl.updateFields()
 
